@@ -1,4 +1,4 @@
-“””
+"""
 adam.py
 
 author: Colin Clement
@@ -10,8 +10,7 @@ usage:
 
 opt = Adam(obj_grad_obj) 
 sol = opt.optimize(np.random.randn(N))
-
-“””
+"""
 
 import numpy as np
 
