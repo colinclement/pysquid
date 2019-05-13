@@ -13,6 +13,7 @@ from scipy.optimize import minimize
 import scipy.sparse.linalg as ssl
 from scipy.ndimage import label
 from scipy.sparse import vstack
+from functools import partial
 import numexpr as nu
 import numpy as np
 
@@ -25,6 +26,103 @@ linear_solvers = ['bicg', 'bicgstab', 'cg', 'cgs', 'gmres', 'lgmres',
                   'minres', 'qmr']
 solver_msg = ("Solver must be one of the following\n" +
               ', '.join(linear_solvers))
+
+
+class LinearDeconvolver:
+    """
+    An object which solves a deconvolution problem subject to a Gaussian 
+    (quadratic) prior, also known as Tikhonov regularized deconvolution.
+    Specifically, for a given flux image \phi, kernel M, regularization
+    operator \Gamma, and regularization strength \sigma^2, it solves
+
+        min_g 1/2||Mg - \phi||^2 + \sigma^2 ||\Gamma g||^2.
+
+    In other words, it solves the linear equation
+
+        (M^T M + 2 \sigma^2\Gamma^T \Gamma) g = M^T \phi.
+
+    Parameters
+    ----------
+    kernel: pysquid.Kernel object which can compute
+        M.dot and M.T.dot matrix-vector products
+        via the methods `kernel.applyM` and `kernel.applyMt`
+
+    (optional)
+    gamma : MyLinearOperator object
+        the regularization operator \Gamma, by default it is the laplacian
+    """
+
+    def __init__(self, kernel, gamma=None):
+        """
+        Initialize LinearDeconvolver
+        """
+        self.kernel = kernel
+
+        def M(g): return self.kernel.applyM(g).real.ravel()
+        def Mt(g): return self.kernel.applyMt(g).real.ravel()
+        N, N_pad = self.kernel.N, self.kernel.N_pad
+        self.M = MyLinearOperator((N, N_pad), matvec=M, rmatvec=Mt)
+
+        if gamma is None:
+            D2h, D2v = makeD2_operators(
+                self.kernel._padshape, dx=self.kernel.rxy
+            )
+            self.G = D2h + D2v
+        else:
+            msg = 'gamma must have `dot` and methods'
+            assert hasattr(gamma, 'dot'), msg
+            msg = 'gamma must have `T` and methods'
+            assert hasattr(gamma, 'T'), msg
+            self.G = gamma
+
+    def _apply_regularized_kernel(self, x, sigma):
+        return (self.M.T.dot(self.M.dot(x)) + 
+                2*sigma**2 * self.G.T.dot(self.G.dot(x)))
+
+    def _regularized_operator(self, sigma):
+        N_pad = self.kernel.N_pad
+        return MyLinearOperator(
+            (N_pad, N_pad), matvec=partial(self._apply_regularized_kernel,
+                                           sigma=sigma)
+        )
+
+    def deconvolve(self, phi, sigma, **kwargs):
+        """
+        Solve the regularized deconvolution problem with specific
+        flux image \phi and regularization strength sigma
+
+        Parameters
+        ----------
+        phi : ndarray
+            image of size N total elements, matching initialized kernel
+        sigma : float
+            estimate of noise in the data or otherwise chosen regularization
+            strength
+        (optional kwargs)
+        solver : str
+            specifying one of the linear solvers from the `scipy.sparse.linalg`
+            package
+        iprint : int
+            if larger than 0 will print messages
+
+        Returns
+        -------
+        gsol : ndarray of size N_pad
+            solution to the regularized deconvolution problem
+        """
+        solver_str = kwargs.pop('solver', 'cg')
+        iprint = kwargs.pop('iprint', 0)
+        assert solver_str in linear_solvers, solver_msg
+        solver = getattr(ssl, solver_str)
+
+        A = self._regularized_operator(sigma)
+        b = self.M.T.dot(phi.ravel())
+
+        xsol, info = solver(A, b, **kwargs)
+        if iprint:
+            print('Convergence info {}'.format(info))
+
+        return xsol
 
 
 class Deconvolver(ADMM):
@@ -45,7 +143,6 @@ class Deconvolver(ADMM):
         g
         z_update
     (See class ADMM for argument signatures of these functions)
-
     """
 
     def __init__(self, kernel, **kwargs):
