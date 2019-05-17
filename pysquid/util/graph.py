@@ -11,9 +11,10 @@ algorithms as described in Skiena chapter 5
 
 class Edgenode(object):
     def __init__(self, y=None, w=1):
-        self.y = None 
+        self.y = None
         self.w = w
         self.nextedge = None
+
 
 class Graph(object):
     def __init__(self, nvertices, directed=False):
@@ -52,19 +53,19 @@ class Graph(object):
                     edgestr += "{} ".format(p.y)
                     p = p.nextedge
                 print(edgestr)
-                    
+
     def bfs(self, s):
         self._discovered = [False for i in range(self.nv)]
         self._processed = [False for i in range(self.nv)]
         parent = [None for i in range(self.nv)]
-    
+
         self._discovered[s] = True
         q = [s]
         while q:
             v = q.pop(0)  # fifo
             self.process_early(v)
             self._processed[v] = True
-    
+
             p = self.edges[v]
             while p:
                 y = p.y
@@ -85,17 +86,16 @@ class Graph(object):
         elif end is None:
             return []  # no path exists!
         else:
-            return self.findpath(start, parents[end], parents, 
-                                 [parents[end]] + path)
-    
+            return self.findpath(start, parents[end], parents, [parents[end]] + path)
+
     def shortestpath(self, start, end):
         parents = self.bfs(start)  # must have start as root
         return self.findpath(start, end, parents)
-        
+
     def connected_components(self):
         def addcomponents(x, comp):
             comp += [x]
-    
+
         comp = []
         self.process_early = lambda x: addcomponents(x, comp)
         self.bfs(0)  # start search from arbitrary node
@@ -112,15 +112,14 @@ class Graph(object):
         return components
 
     def dfs(self, s):
-        self._discovered = getattr(self, '_discovered', 
-                                   [False for i in range(self.nv)])
+        self._discovered = getattr(self, "_discovered", [False for i in range(self.nv)])
         self._processed = [False for i in range(self.nv)]
         self._parent = [None for i in range(self.nv)]
         self._entry = [None for i in range(self.nv)]
         self._exit = [None for i in range(self.nv)]
         self._finished = False
         self._time = 0
-        
+
         def search(v):
             if self._finished:
                 return
@@ -153,7 +152,7 @@ class Graph(object):
 
     def dfs_graph(self):
         self._discovered = [False for i in range(self.nv)]
-        
+
         def process_early(v, comp):
             comp.append(v)
 
@@ -212,7 +211,8 @@ class Graph(object):
                     self._reachable_ancestor[x] = y
 
         articulations = []
-        def process_late(v, lst = articulations):
+
+        def process_late(v, lst=articulations):
             # Root cut
             if self._parent[v] is None and self._tree_out_degree[v] > 1:
                 articulations.append(v)
@@ -241,14 +241,17 @@ class Graph(object):
     def topsort(self):
         assert self.directed, "Graph not directed, topological sort undefined"
         topsorted = []
+
         def process_late(v, lst=topsorted):
             lst.insert(0, v)  # REVERSE processed order
+
         self.process_late = process_late
 
         def process_edge(x, y):
             cls = self.edge_classification(x, y)
             if cls == "BACK":
                 print("Warning: directed cycle found, graph not a DAG")
+
         self._discovered = [False for i in range(self.nv)]
         for i in range(self.nv):
             if not self._discovered[i]:
@@ -270,7 +273,7 @@ class Graph(object):
             while p:
                 y = p.y
                 w = p.w
-                if distance[y] > w and not intree[y]: 
+                if distance[y] > w and not intree[y]:
                     distance[y] = w
                     parent[y] = v
                 p = p.nextedge

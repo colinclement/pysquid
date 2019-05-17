@@ -10,12 +10,12 @@ class MyLinearOperator(LinearOperator):
         """
         if (shape[0] != shape[1]) and rmatvec is None:
             raise TypeError("Non-square matrix requires rmatvec_fn.")
-        super(MyLinearOperator, self).__init__('float64', shape)
+        super(MyLinearOperator, self).__init__("float64", shape)
         self.matvec = matvec
         self.rmatvec = rmatvec if rmatvec is not None else matvec
-    
+
     def _matvec(self, x):
-        return self.matvec(x) 
+        return self.matvec(x)
 
     def _rmatvec(self, x):
         return self.rmatvec(x)
@@ -23,4 +23,3 @@ class MyLinearOperator(LinearOperator):
     @property
     def T(self):
         return self.H
-

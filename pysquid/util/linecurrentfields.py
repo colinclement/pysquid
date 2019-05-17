@@ -15,9 +15,11 @@ which does not have current conservation on the edges.
 
 import numpy as np
 
+
 def _indefintegral(l, x, y, z):
-    b, r = x*x + z*z, l-y
-    return x*r/(b*np.sqrt(b+r*r))/(4*np.pi)
+    b, r = x * x + z * z, l - y
+    return x * r / (b * np.sqrt(b + r * r)) / (4 * np.pi)
+
 
 def bzlinecurrent(x, y, x0, y0, z, l, ydir=True):
     """
@@ -28,27 +30,30 @@ def bzlinecurrent(x, y, x0, y0, z, l, ydir=True):
     x, y
     """
     if ydir:
-        return (_indefintegral(l/2., x-x0, y-y0, z)
-                -_indefintegral(-l/2., x-x0, y-y0, z))
-    else: 
-        return (_indefintegral(l/2., y-y0, x-x0, z)
-                -_indefintegral(-l/2., y-y0, x-x0, z))
+        return _indefintegral(l / 2.0, x - x0, y - y0, z) - _indefintegral(
+            -l / 2.0, x - x0, y - y0, z
+        )
+    else:
+        return _indefintegral(l / 2.0, y - y0, x - x0, z) - _indefintegral(
+            -l / 2.0, y - y0, x - x0, z
+        )
 
-def bzfield_edgecurrents(gfield, height, rxy=1.):
+
+def bzfield_edgecurrents(gfield, height, rxy=1.0):
     Ly, Lx = gfield.shape
-    x = np.fft.fftshift(rxy*np.arange(-Lx, Lx)[None,:])
-    y = np.fft.fftshift(np.arange(-Ly, Ly)[:,None])
-    top = bzlinecurrent(x, y, 0., -0.5, height, 1., False)
-    bottom = -bzlinecurrent(x, y, 0., 0.5, height, 1., False)
-    left = bzlinecurrent(x, y, -rxy/2., 0., height, rxy)
-    right = -bzlinecurrent(x, y, rxy/2., 0., height, rxy)
+    x = np.fft.fftshift(rxy * np.arange(-Lx, Lx)[None, :])
+    y = np.fft.fftshift(np.arange(-Ly, Ly)[:, None])
+    top = bzlinecurrent(x, y, 0.0, -0.5, height, 1.0, False)
+    bottom = -bzlinecurrent(x, y, 0.0, 0.5, height, 1.0, False)
+    left = bzlinecurrent(x, y, -rxy / 2.0, 0.0, height, rxy)
+    right = -bzlinecurrent(x, y, rxy / 2.0, 0.0, height, rxy)
 
-    edge = np.zeros((2*Ly, 2*Lx))
+    edge = np.zeros((2 * Ly, 2 * Lx))
     kernels = [top, bottom, left, right]
-    slices = [np.s_[0,:Lx], np.s_[Ly-1,:Lx], np.s_[:Ly,0], np.s_[:Ly,Lx-1]]
-    edgefield_k = np.zeros((2*Ly, Lx+1), dtype='complex128')
+    slices = [np.s_[0, :Lx], np.s_[Ly - 1, :Lx], np.s_[:Ly, 0], np.s_[:Ly, Lx - 1]]
+    edgefield_k = np.zeros((2 * Ly, Lx + 1), dtype="complex128")
     for k, sl in zip(kernels, slices):
         edge[sl] = gfield[sl].copy()
-        edgefield_k += np.fft.rfftn(edge)*np.fft.rfftn(k)
-        edge[sl] = 0.
+        edgefield_k += np.fft.rfftn(edge) * np.fft.rfftn(k)
+        edge[sl] = 0.0
     return np.fft.irfftn(edgefield_k)[:Ly, :Lx]
