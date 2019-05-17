@@ -22,9 +22,7 @@ from pysquid.util.fftw import FFT
 
 
 class Kernel(ModelComponent):
-    
-    def __init__(self, shape, params=None, padding=None, edges=True, 
-                 **kwargs):
+    def __init__(self, shape, params=None, padding=None, edges=True, **kwargs):
         """
         Kernel class instance stores point spread functions and the flux of
         point (square) sources of constant g-field. 
@@ -53,38 +51,36 @@ class Kernel(ModelComponent):
         super(Kernel, self).__init__(shape, padding, **kwargs)
         self.edges = edges
 
-        self._fftw_plan = kwargs.get('fftw_plan', 'FFTW_MEASURE')
-        self._fftw_threads = kwargs.get('threads', 4)
+        self._fftw_plan = kwargs.get("fftw_plan", "FFTW_MEASURE")
+        self._fftw_threads = kwargs.get("threads", 4)
 
         self._updategrids()
 
-        self.fft = FFT(self._fftshape, plan=self._fftw_plan,
-                        threads=self._fftw_threads)
-        self._unPickleable += ['fft']
+        self.fft = FFT(self._fftshape, plan=self._fftw_plan, threads=self._fftw_threads)
+        self._unPickleable += ["fft"]
 
         self._doubleg = np.zeros(self._fftshape)
         self._doublefluxpad = np.zeros(self._fftshape)
-        
-        self.updateParams('params', params if params is not None else [1.])
+
+        self.updateParams("params", params if params is not None else [1.0])
 
     def __setstate__(self, d):
         self.__dict__ = d
-        self.fft = FFT(self._fftshape, plan=self._fftw_plan,
-                       threads=self._fftw_threads)
+        self.fft = FFT(self._fftshape, plan=self._fftw_plan, threads=self._fftw_threads)
 
     def _updategrids(self):
-        self.x = self.rxy * np.arange( 0.5,  2*self.Lx_pad,  1.)
-        self.y = np.arange(-0.5, -2*self.Ly_pad, -1.)
+        self.x = self.rxy * np.arange(0.5, 2 * self.Lx_pad, 1.0)
+        self.y = np.arange(-0.5, -2 * self.Ly_pad, -1.0)
         self.xg, self.yg = np.meshgrid(self.x, self.y)
-        self.d_xg = np.fft.fftshift(self.xg - (self.rxy*2*self.Lx_pad)/2)
-        self.d_yg = np.fft.fftshift(self.yg + (2*self.Ly_pad)/2)
+        self.d_xg = np.fft.fftshift(self.xg - (self.rxy * 2 * self.Lx_pad) / 2)
+        self.d_yg = np.fft.fftshift(self.yg + (2 * self.Ly_pad) / 2)
 
     def updateParams(self, name, values):
         """
         params = list of at least one number
         set up for lazy evaluation
         """
-        if name == 'params':
+        if name == "params":
             self.params = copy(values)
             self._updatem()
             self._updatepsf()
@@ -93,21 +89,26 @@ class Kernel(ModelComponent):
 
     def _updatem(self):
         self.mg = _gGreensFunction(
-            self.rxy/2., -1/2., self.d_xg, self.d_yg, self.params[0],
-            self.rxy, 1.
+            self.rxy / 2.0,
+            -1 / 2.0,
+            self.d_xg,
+            self.d_yg,
+            self.params[0],
+            self.rxy,
+            1.0,
         )
         self.mg_k = self.fft.fft2(self.mg)
 
     def _updateE(self):
         height, rxy = self.params[0], self.rxy
         Ly, Lx = self.Ly_pad, self.Lx_pad
-        x = np.fft.fftshift(rxy*np.arange(-Lx, Lx)[None,:])
-        y = np.fft.fftshift(np.arange(-Ly, Ly)[:,None])
+        x = np.fft.fftshift(rxy * np.arange(-Lx, Lx)[None, :])
+        y = np.fft.fftshift(np.arange(-Ly, Ly)[:, None])
         self.edgefields = [
-             _bzlinecurrent(x, y, 0., -0.5, height, 1., False),
-            -_bzlinecurrent(x, y, 0., 0.5, height, 1., False),
-             _bzlinecurrent(x, y, -rxy/2., 0., height, rxy),
-            -_bzlinecurrent(x, y, rxy/2., 0., height, rxy),
+            _bzlinecurrent(x, y, 0.0, -0.5, height, 1.0, False),
+            -_bzlinecurrent(x, y, 0.0, 0.5, height, 1.0, False),
+            _bzlinecurrent(x, y, -rxy / 2.0, 0.0, height, rxy),
+            -_bzlinecurrent(x, y, rxy / 2.0, 0.0, height, rxy),
         ]
         self.edgefields_k = [self.fft.fft2(b) for b in self.edgefields]
 
@@ -115,7 +116,7 @@ class Kernel(ModelComponent):
         """
         """
         self.psf = np.zeros(self._fftshape)
-        self.psf[0,0] = 1.
+        self.psf[0, 0] = 1.0
         self.psf_k = self.fft.fft2(self.psf)
 
     def edgeslice(self, pad=True):
@@ -124,8 +125,12 @@ class Kernel(ModelComponent):
             Ly, Lx = self.Ly_pad, self.Lx_pad
         else:
             Ly, Lx = self.Ly, self.Lx
-        return [(0, slice(None, Lx, None)), (Ly-1, slice(None, Lx, None)),
-                (slice(None, Ly, None), 0), (slice(None, Ly, None), Lx-1)]
+        return [
+            (0, slice(None, Lx, None)),
+            (Ly - 1, slice(None, Lx, None)),
+            (slice(None, Ly, None), 0),
+            (slice(None, Ly, None), Lx - 1),
+        ]
 
     def edgeproject(self, g, pad=True):
         output = []
@@ -145,12 +150,11 @@ class Kernel(ModelComponent):
         """
         Ly, Lx = self.Ly_pad, self.Lx_pad
         g = arr.reshape(Ly, Lx)
-        self._doubleg[:Ly,:Lx] = g[:,:]
+        self._doubleg[:Ly, :Lx] = g[:, :]
         g_k = self.fft.fft2(self._doubleg)
         out = self.crop(self.fft.ifft2(self.psf_k * self.mg_k * g_k))
         if not self.edges:
-            for ek, lg in zip(self.edgefields_k, 
-                              self.edgeproject(self._doubleg)):
+            for ek, lg in zip(self.edgefields_k, self.edgeproject(self._doubleg)):
                 lg_k = self.fft.fft2(lg)
                 out -= self.crop(self.fft.ifft2(self.psf_k * ek * lg_k))
         return out
@@ -165,25 +169,26 @@ class Kernel(ModelComponent):
         """
         Ly, Lx, py, px = self.Ly, self.Lx, self.py, self.px
         flux = arr.reshape(Ly, Lx)
-        self._doublefluxpad[py:py+Ly, px:px+Lx] = flux[:,:]
+        self._doublefluxpad[py : py + Ly, px : px + Lx] = flux[:, :]
         flux_k = self.fft.fft2(self._doublefluxpad)
         out = self.fft.ifft2(self.psf_k * self.mg_k * flux_k)
         if not self.edges:
             for ek, sl in zip(self.edgefields_k, self.edgeslice()):
                 out[sl] -= self.fft.ifft2(self.psf_k * ek * flux_k)[sl]
-        return out[:self.Ly_pad, :self.Lx_pad]
+        return out[: self.Ly_pad, : self.Lx_pad]
 
     @property
     def m_k(self):
         return self.psf_k * self.mg_k
 
 
-def _indefIntegral(x,y,d):
+def _indefIntegral(x, y, d):
     """
     Indefinite integral of g-field flux for thin sheet of current 
     """
-    d2, x2, y2 = d*d, x*x, y*y
-    return nu.evaluate('x*y*(2*d2+x2+y2)/((d2+x2)*(d2+y2)*sqrt(d2+x2+y2))')
+    d2, x2, y2 = d * d, x * x, y * y
+    return nu.evaluate("x*y*(2*d2+x2+y2)/((d2+x2)*(d2+y2)*sqrt(d2+x2+y2))")
+
 
 def _gGreensFunction(x0, y0, x, y, z, ax, ay):
     """
@@ -203,16 +208,22 @@ def _gGreensFunction(x0, y0, x, y, z, ax, ay):
         dphi_dz : same shape and type as phi
         
     """
-    ax2, ay2 = ax/2., ay/2. 
+    ax2, ay2 = ax / 2.0, ay / 2.0
     A = lambda x1, y1: _indefIntegral(x1, y1, z)
     xc, yc = x - x0, y - y0
-    Bz = (A( ax2 - xc, ay2 - yc) - A( ax2 - xc, -ay2 - yc) - 
-          A(-ax2 - xc, ay2 - yc) + A(-ax2 - xc, -ay2 - yc))/(4*np.pi)
+    Bz = (
+        A(ax2 - xc, ay2 - yc)
+        - A(ax2 - xc, -ay2 - yc)
+        - A(-ax2 - xc, ay2 - yc)
+        + A(-ax2 - xc, -ay2 - yc)
+    ) / (4 * np.pi)
     return Bz
 
+
 def _lineindefintegral(l, x, y, z):
-    b, r = x*x + z*z, l - y
-    return x*r/(b*np.sqrt(b+r*r))/(4*np.pi)
+    b, r = x * x + z * z, l - y
+    return x * r / (b * np.sqrt(b + r * r)) / (4 * np.pi)
+
 
 def _bzlinecurrent(x, y, x0, y0, z, l, ydir=True):
     """
@@ -222,8 +233,10 @@ def _bzlinecurrent(x, y, x0, y0, z, l, ydir=True):
     x, y
     """
     if ydir:
-        return (_lineindefintegral(l/2., x-x0, y-y0, z) - 
-                _lineindefintegral(-l/2., x-x0, y-y0, z))
+        return _lineindefintegral(l / 2.0, x - x0, y - y0, z) - _lineindefintegral(
+            -l / 2.0, x - x0, y - y0, z
+        )
     else:
-        return (_lineindefintegral(l/2., y-y0, x-x0, z) - 
-                _lineindefintegral(-l/2., y-y0, x-x0, z))
+        return _lineindefintegral(l / 2.0, y - y0, x - x0, z) - _lineindefintegral(
+            -l / 2.0, y - y0, x - x0, z
+        )
