@@ -72,11 +72,15 @@ class ADMM(object):
         self.B = None
         self.c = None
 
-        self.msg = {1: "Convergence criterion satisfied",
-                    2: "Iteration limit reached"}
-        self.printcolors = {"red": "\033[1;31;49m", "green": "\033[1;32;49m",
-                            "blue": "\033[1;34;49m", "purple": "\033[1;35;49m",
-                            "gray": "\033[1;30;49m", "black": ""}
+        self.msg = {1: "Convergence criterion satisfied", 2: "Iteration limit reached"}
+        self.printcolors = {
+            "red": "\033[1;31;49m",
+            "green": "\033[1;32;49m",
+            "blue": "\033[1;34;49m",
+            "purple": "\033[1;35;49m",
+            "gray": "\033[1;30;49m",
+            "black": "",
+        }
         self.defaultprintcolor = "black"
         self.appendprint = ""
 
@@ -85,7 +89,7 @@ class ADMM(object):
         Print in red text
         """
         color = color if color is not None else self.defaultprintcolor
-        printstr = self.appendprint + self.printcolors[color]+string+"\033[0m"
+        printstr = self.appendprint + self.printcolors[color] + string + "\033[0m"
         print(printstr)
 
     # -----------------------------------------------------------------
@@ -190,8 +194,9 @@ class ADMM(object):
         Ax = A.dot(x)
         Bz = B.dot(z)
         ATy = A.T.dot(y)
-        eps_pri = (np.sqrt(self.p) * eps_abs
-                   + eps_rel * max(Ax.dot(Ax), Bz.dot(Bz), c.dot(c)))
+        eps_pri = np.sqrt(self.p) * eps_abs + eps_rel * max(
+            Ax.dot(Ax), Bz.dot(Bz), c.dot(c)
+        )
         eps_dual = np.sqrt(self.n) * eps_abs + eps_rel * ATy.dot(ATy)
         if r.dot(r) <= eps_pri and s.dot(s) <= eps_dual:
             return True
@@ -205,9 +210,9 @@ class ADMM(object):
         mu of each other
         """
         r2, s2 = r.dot(r), s.dot(s)
-        if r2 > mu*s2:
+        if r2 > mu * s2:
             return rho * float(t_inc)
-        elif s2 > mu*r2:
+        elif s2 > mu * r2:
             return rho / float(t_dec)
         else:
             return rho
@@ -219,14 +224,16 @@ class ADMM(object):
         """
         self._z0rhs = self.c - self.A.dot(x0)
         maxiter = kwargs.get("z0_maxiter", None)
-        atol = kwargs.get("z0_atol", 1E-6)
-        btol = kwargs.get("z0_btol", 1E-6)
-        self._z0minsol = ssl.lsqr(self.B, self._z0rhs, iter_lim=maxiter,
-                                  atol=atol, btol=btol, damp=1E-5)
+        atol = kwargs.get("z0_atol", 1e-6)
+        btol = kwargs.get("z0_btol", 1e-6)
+        self._z0minsol = ssl.lsqr(
+            self.B, self._z0rhs, iter_lim=maxiter, atol=atol, btol=btol, damp=1e-5
+        )
         return self._z0minsol[0]
 
-    def minimize(self, x0=None, f_args=(), g_args=(),
-                 f_kwargs={}, g_kwargs={}, **kwargs):
+    def minimize(
+        self, x0=None, f_args=(), g_args=(), f_kwargs={}, g_kwargs={}, **kwargs
+    ):
         """
         Implementation of the ADMM algorithm as described
         in Boyd 2010. Includes the scheme for updating
@@ -263,17 +270,17 @@ class ADMM(object):
         self.check_callback(callback)
 
         itnlim = kwargs.get("itnlim", 40)
-        eps_abs = kwargs.get("eps_abs", 1E-4)
-        eps_rel = kwargs.get("eps_rel", 1E-6)
-        t_inc = kwargs.get("t_inc", 2.)
-        t_dec = kwargs.get("t_dec", 2.)
+        eps_abs = kwargs.get("eps_abs", 1e-4)
+        eps_rel = kwargs.get("eps_rel", 1e-6)
+        t_inc = kwargs.get("t_inc", 2.0)
+        t_dec = kwargs.get("t_dec", 2.0)
         mu = kwargs.get("mu", 10)
-        rho = kwargs.get("rho", 1E-2)
+        rho = kwargs.get("rho", 1e-2)
 
         x0 = x0 if x0 is not None else np.random.randn(self.n)
         z0 = self.start_z(x0, **kwargs)
         y0 = self.start_lagrange_mult(x0, z0, rho, *f_args, **f_kwargs)
-        iprint = kwargs.get('iprint', 1)
+        iprint = kwargs.get("iprint", 1)
 
         self.check_shape(x0, "x0", (self.n,))
         self.check_shape(z0, "z0", (self.m,))
@@ -328,10 +335,11 @@ class ADMM(object):
     def combined_residual(self, y, y_hat, z, z_hat, rho):
         prim = y - y_hat
         dual = self.B.dot(z - z_hat)
-        return prim.dot(prim)/rho + rho*dual.dot(dual)
+        return prim.dot(prim) / rho + rho * dual.dot(dual)
 
-    def minimize_fastrestart(self, x0=None, f_args=(), g_args=(),
-                             f_kwargs={}, g_kwargs={}, **kwargs):
+    def minimize_fastrestart(
+        self, x0=None, f_args=(), g_args=(), f_kwargs={}, g_kwargs={}, **kwargs
+    ):
         """
         Implementation of the ADMM algorithm as described
         in Boyd 2010. Includes the scheme for updating
@@ -372,18 +380,18 @@ class ADMM(object):
         self.check_callback(callback)
 
         itnlim = kwargs.get("itnlim", 20)
-        eps_abs = kwargs.get("eps_abs", 1E-4)
-        eps_rel = kwargs.get("eps_rel", 1E-6)
-        t_inc = kwargs.get("t_inc", 2.)
-        t_dec = kwargs.get("t_dec", 2.)
+        eps_abs = kwargs.get("eps_abs", 1e-4)
+        eps_rel = kwargs.get("eps_rel", 1e-6)
+        t_inc = kwargs.get("t_inc", 2.0)
+        t_dec = kwargs.get("t_dec", 2.0)
         mu = kwargs.get("mu", 10)
-        rho = kwargs.get("rho", 1E-1)
+        rho = kwargs.get("rho", 1e-1)
         eta = kwargs.get("eta", 0.999)
 
         x0 = x0 if x0 is not None else np.random.randn(self.n)
         z0 = self.start_z(x0, **kwargs)
         y0 = self.start_lagrange_mult(x0, z0, rho, *f_args, **f_kwargs)
-        iprint = kwargs.get('iprint', 1)
+        iprint = kwargs.get("iprint", 1)
 
         self.check_shape(x0, "x0", (self.n,))
         self.check_shape(z0, "z0", (self.m,))
@@ -401,7 +409,7 @@ class ADMM(object):
         cost = self.cost(x0, z0, f_args, g_args)
 
         z_hat, y_hat = z0.copy(), y0.copy()
-        alpha0, c0 = 1., np.inf  # always accept first accelerated step
+        alpha0, c0 = 1.0, np.inf  # always accept first accelerated step
 
         if iprint:
             self.cprint("Initial cost = {:.3e}".format(cost))
@@ -417,13 +425,13 @@ class ADMM(object):
             rho = self.update_rho(rho, t_inc, t_dec, mu, r1, s)
 
             if c1 < eta * c0:
-                alpha1 = (1+np.sqrt(1+4*alpha0**2))/2
-                vel = (alpha0-1)/alpha1
+                alpha1 = (1 + np.sqrt(1 + 4 * alpha0 ** 2)) / 2
+                vel = (alpha0 - 1) / alpha1
                 z_hat = z1 + vel * (z1 - z0)
                 y_hat = y1 + vel * (y1 - y0)
             else:  # Restart acceleration
-                alpha1, z_hat, y_hat = 1., z0.copy(), y0.copy()
-                c1 = c0/eta
+                alpha1, z_hat, y_hat = 1.0, z0.copy(), y0.copy()
+                c1 = c0 / eta
                 if iprint > 1:
                     self.cprint("\t\tRestarted acceleration", color="red")
 
