@@ -7,8 +7,6 @@ This computes currents in a resistor network provided by a mask
 in order to approximate current entering and leaving an image.
 """
 
-from __future__ import print_function
-
 from pysquid.component import ModelComponent
 from pysquid.util.graph import Graph
 from pysquid.util.helpers import curl
@@ -427,7 +425,6 @@ class ResistorNetworkModel(ModelComponent):
             self._unitJ_flux = self.kernel.applyM(self.gfield).real
         else:
             self._unitJ_flux = np.zeros_like(self.mask, dtype="float")
-            print("No kernel attribute\n")
 
     def _updateModel_g(self):
         """
