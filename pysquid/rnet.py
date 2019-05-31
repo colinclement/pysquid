@@ -433,7 +433,7 @@ class ResistorNetworkModel(ModelComponent):
         J = self.J_ext
         cutp = self._cutp
         nop, cut = self._nop, self._cut
-        self.ext_g = J * self.gfield[cutp]
+        self.g_ext = J * self.gfield[cutp]
 
     def computeGradients(self):
         if self.kernel:

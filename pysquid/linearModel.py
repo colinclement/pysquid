@@ -301,7 +301,7 @@ class LinearModelTV_ADMM(LinearModel):
         g0 = g0 if g0 is not None else np.random.randn(N_pad) / np.sqrt(N_pad)
         self._Mtphi = self.M.T.dot(flux.ravel())
         if extmodel is not None:
-            g_ext = extmodel.ext_g.ravel()
+            g_ext = extmodel.g_ext.ravel()
             Dg_ext = self.D.dot(g_ext)
             D2g_ext = self.D.T.dot(Dg_ext)
         else:
