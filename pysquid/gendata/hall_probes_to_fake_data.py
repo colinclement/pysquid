@@ -22,11 +22,11 @@ from skimage.transform import rotate
 from scipy.interpolate import griddata
 from scipy.io import loadmat
 
-loc = os.path.dirname(os.path.realpath(__file__))
+DIRNAME = os.path.dirname(os.path.realpath(__file__))
 
 
 def make_mask():
-    rgba = rotate(loadpng(os.path.join(loc, "MicroscopePicture.png")), 1)
+    rgba = rotate(loadpng(os.path.join(DIRNAME, "MicroscopePicture.png")), 1)
     # immask = (rgba[:,:,1]<np.mean(rgba[:,:,1]))*(rgba[:,:,0]<np.mean(rgba[:,:,0]))
     immask = (rgba[:, :, 1] < 0.0075) * (rgba[:, :, 0] < 0.00125)
     h, w, _ = rgba.shape
@@ -57,7 +57,7 @@ def make_mask():
     ly, lx = bridged_mask.shape
     padded = np.zeros((ly + 200, lx))
     padded[:ly, :] = bridged_mask
-    np.save(os.path.join(loc, "fake_data_hallprobemask.npy"), padded[3:, 5:-5])
+    np.save(os.path.join(DIRNAME, "fake_data_hallprobemask.npy"), padded[3:, 5:-5])
 
     mask = padded[3:, 5:-5]
 
@@ -68,7 +68,7 @@ def make_mask():
     # plt.matshow(cut)
     scope_scale = 50.0 / (cut.shape[1])  # micrometers
 
-    # data = loadmat(os.path.join(loc, '../../../katja/im_HgTe_Inv_g_n1_061112_0447.mat'))
+    # data = loadmat(os.path.join(DIRNAME, '../../../katja/im_HgTe_Inv_g_n1_061112_0447.mat'))
     # scan = data['scans'][0][0][0][::-1,:,2]
     # ly, lx = scan.shape
     imgspacing = [0.16, 0.73]
@@ -89,6 +89,6 @@ def make_mask():
     xcorner, ycorner = 224, 835
 
     np.save(
-        os.path.join(loc, "fake_data_hallprobe_interpolated.npy"),
+        os.path.join(DIRNAME, "fake_data_hallprobe_interpolated.npy"),
         interp.reshape(len(datay), -1),
     )
