@@ -388,7 +388,7 @@ class ADMM(object):
         rho = kwargs.get("rho", 1e-1)
         eta = kwargs.get("eta", 0.999)
 
-        x0 = x0 if x0 is not None else np.random.randn(self.n)
+        x0 = x0 if x0 is not None else np.random.randn(self.n)/np.sqrt(self.n)
         z0 = self.start_z(x0, **kwargs)
         y0 = self.start_lagrange_mult(x0, z0, rho, *f_args, **f_kwargs)
         iprint = kwargs.get("iprint", 1)
