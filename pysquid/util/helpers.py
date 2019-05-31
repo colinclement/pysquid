@@ -93,6 +93,8 @@ def makeD2_operators(shape, dx=1.0, dy=1.0):
                    second derivatives in horiz/vert direction
     """
     Ly, Lx = shape
+    assert Ly > 2, 'Ly must be greater than 2'
+    assert Lx > 2, 'Lx must be greater than 2'
     N = Ly * Lx
     d2x, d2y = dx * dx, dy * dy
     hrow, hcol, hdata = [], [], []
