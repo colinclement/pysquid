@@ -38,14 +38,14 @@ def make_fake_data():
                             
     netmodel.kernel = kernel
     netmodel.updateParams('J_ext', np.array([1000]))
-    jx, jy = curl(netmodel.ext_g, dx=kernel.rxy)
+    jx, jy = curl(netmodel.g_ext, dx=kernel.rxy)
 
     np.savez(os.path.join(loc, 'fake_data.npz'), 
              offset = fake_data_offset, 
              psf_params = true_params['psf_params'],
              J_ext = true_params['J_ext'], all_g = netmodel.gfield,
              unitJ_flux = netmodel._unitJ_flux,
-             image_g = netmodel.ext_g,
+             image_g = netmodel.g_ext,
              image_flux = netmodel.ext_flux)
     
     #savemat(os.path.join(loc,'fake_data.mat'),
@@ -53,5 +53,5 @@ def make_fake_data():
     #        'scan_plus_noise': (netmodel.ext_flux + 
     #                            np.random.randn(Ly, Lx)*0.02),
     #         'true_jx': jx, 'true_jy': jy,
-    #         'true_g_field': netmodel.ext_g,
+    #         'true_g_field': netmodel.g_ext,
     #         'true_PSF': kernel.PSF.real})
