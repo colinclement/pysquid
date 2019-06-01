@@ -12,59 +12,18 @@ variation in current (second derivative in g) and finite support
 from scipy.optimize import minimize
 from scipy.sparse import csr_matrix
 import scipy.sparse.linalg as ssl
-from scipy.ndimage import label
 from scipy.sparse import vstack
 from functools import partial
 import numexpr as nu
 import numpy as np
 
-from pysquid.util.linear_operators import MyLinearOperator, makeD2
+from pysquid.util.linear_operators import (MyLinearOperator, makeD2, 
+                                           finite_support)
 from pysquid.opt.admm import ADMM
 
 
 LINEAR_SOLVERS = ["bicg", "bicgstab", "cg", "cgs", "gmres", "lgmres", "minres", "qmr"]
 SOLVER_MSG = "Solver must be one of the following\n" + ", ".join(LINEAR_SOLVERS)
-
-
-def _finite_support_op(mask, out_shape=None):
-    r"""
-    Creates finite support operator F, such that
-    g = F \tilde{g}, where \tilde{g} has fewer degrees of freedom as
-    determined by the mask, which has 1 where g-values should be constant
-    and 0 where g-values can be free.
-
-    Parameters
-    ----------
-    mask : array_like
-        Mask of shape (Ly, Lx), with regions of 1 where currents should
-        NOT flow, and 0 where they should flow.
-    out_shape : tuple
-        Required mask shape. If provided, the function only checks that 
-        mask.shape = out_shape
-    Returns
-    -------
-    F : scipy.sparse.csr.csr_matrix
-        operator which maps reduced degree of freedom representations of
-        g into a full image
-    """
-    if out_shape is not None:
-        assert mask.shape == out_shape, "mask shape does not match out_shape"
-    labels, num = label(mask)
-    sizes = np.sqrt([mask[labels == i].sum() for i in range(1, num+1)])
-    rows, cols, vals = [], [], []
-    count = 0  # start independent values after fixed values
-    # g_i = \sum_j F_{i,j} \tilde{g}_j
-    #TODO: MAKE SURE THESE INDICES ARE ALL CORRECT!
-    for i, j in enumerate(labels.ravel()):
-        rows.append(i)
-        if j:
-            cols.append(j - 1)
-            vals.append(1 / sizes[j - 1])  # to prevent crazy scales
-        else:
-            cols.append(num + count)
-            vals.append(1)
-            count += 1
-    return csr_matrix((vals, (rows, cols)), (mask.size, num + count))
 
 
 class LinearDeconvolver:
@@ -125,7 +84,7 @@ class LinearDeconvolver:
                 return self.kernel.applyMt(g).real.ravel()
 
         else:
-            self._F = _finite_support_op(support_mask, self.kernel._padshape)
+            self._F = finite_support(support_mask, self.kernel._padshape)
 
             def M(g):
                 return self.kernel.applyM(self._F.dot(g)).real.ravel()
@@ -244,7 +203,7 @@ class Deconvolver(ADMM):
                 return self.kernel.applyMt(g).real.ravel()
 
         else:
-            self._F = _finite_support_op(support_mask, self.kernel._padshape)
+            self._F = finite_support(support_mask, self.kernel._padshape)
 
             def M(g):
                 return self.kernel.applyM(self._F.dot(g)).real.ravel()

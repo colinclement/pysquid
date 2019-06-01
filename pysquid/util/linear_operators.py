@@ -1,4 +1,6 @@
 import numpy as np
+from scipy.ndimage import label
+from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import LinearOperator
 
 
@@ -57,8 +59,8 @@ def makeD(shape, dx=1.0, dy=1.0):
             elif y == Ly - 1:
                 vcol += [i - Lx, i]
             vdata += [-1.0 / dy, 1.0 / dy]
-    dh = sps.coo_matrix((hdata, (hrow, hcol)), shape=(N, N)).tocsr()
-    dv = sps.coo_matrix((vdata, (vrow, vcol)), shape=(N, N)).tocsr()
+    dh = csr_matrix((hdata, (hrow, hcol)), shape=(N, N))
+    dv = csr_matrix((vdata, (vrow, vcol)), shape=(N, N))
     return dh, dv
 
 
@@ -100,9 +102,49 @@ def makeD2(shape, dx=1.0, dy=1.0):
             elif y == Ly - 1:
                 vcol += [i, i - Lx, i - 2 * Lx]
         vdata += [1.0 / d2y, -2.0 / d2y, 1.0 / d2y]
-    d2h = sps.coo_matrix((hdata, (hrow, hcol)), shape=(N, N)).tocsr()
-    d2v = sps.coo_matrix((vdata, (vrow, vcol)), shape=(N, N)).tocsr()
+    d2h = csr_matrix((hdata, (hrow, hcol)), shape=(N, N))
+    d2v = csr_matrix((vdata, (vrow, vcol)), shape=(N, N))
     return d2h, d2v
+
+def finite_support(mask, out_shape=None):
+    r"""
+    Creates finite support operator F, such that
+    g = F \tilde{g}, where \tilde{g} has fewer degrees of freedom as
+    determined by the mask, which has 1 where g-values should be constant
+    and 0 where g-values can be free.
+
+    Parameters
+    ----------
+    mask : array_like
+        Mask of shape (Ly, Lx), with regions of 1 where currents should
+        NOT flow, and 0 where they should flow.
+    out_shape : tuple
+        Required mask shape. If provided, the function only checks that 
+        mask.shape = out_shape
+    Returns
+    -------
+    F : scipy.sparse.csr.csr_matrix
+        operator which maps reduced degree of freedom representations of
+        g into a full image
+    """
+    if out_shape is not None:
+        assert mask.shape == out_shape, "mask shape does not match out_shape"
+    labels, num = label(mask)
+    sizes = np.sqrt([mask[labels == i].sum() for i in range(1, num+1)])
+    rows, cols, vals = [], [], []
+    count = 0  # start independent values after fixed values
+    # g_i = \sum_j F_{i,j} \tilde{g}_j
+    #TODO: MAKE SURE THESE INDICES ARE ALL CORRECT!
+    for i, j in enumerate(labels.ravel()):
+        rows.append(i)
+        if j:
+            cols.append(j - 1)
+            vals.append(1 / sizes[j - 1])  # to prevent crazy scales
+        else:
+            cols.append(num + count)
+            vals.append(1)
+            count += 1
+    return csr_matrix((vals, (rows, cols)), (mask.size, num + count))
 
 
 class MyLinearOperator(LinearOperator):

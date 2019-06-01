@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from pysquid.util.helpers import curl
+from pysquid.util.linear_operators import curl
 
 def fit_diagnostic(model, ref_data, asp, title=None): 
     jx, jy = curl(model.g_sol, model.dx, model.dy)

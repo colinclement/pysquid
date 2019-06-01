@@ -1,6 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import scipy.sparse as sps
 import numexpr as nu
 from scipy.ndimage import mean
 
@@ -21,8 +20,6 @@ try:
     haspng = True
 except ImportError as er:
     haspng = False
-
-
 
 
 def changeUnits(params, dx=1.0, dy=1.0):

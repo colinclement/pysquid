@@ -7,15 +7,15 @@ This computes currents in a resistor network provided by a mask
 in order to approximate current entering and leaving an image.
 """
 
-from pysquid.component import ModelComponent
-from pysquid.util.graph import Graph
-from pysquid.util.helpers import curl
-
 import numpy as np
-from scipy.sparse.linalg import spsolve
-from scipy.sparse import coo_matrix
-from collections import defaultdict
 from scipy.ndimage import label
+from scipy.sparse import csr_matrix
+from collections import defaultdict
+from scipy.sparse.linalg import spsolve
+
+from pysquid.util.graph import Graph
+from pysquid.component import ModelComponent
+from pysquid.util.linear_operators import curl
 
 
 def meshcornerindices(i, Lx):
@@ -141,6 +141,30 @@ class ResistorNetworkModel(ModelComponent):
     """
     An object for modeling arbitrary linear surface currents
 
+    Parameters
+    ----------
+    mask : array_like
+        Boolean or int array of shape (Ly, Lx) for determining
+        which elements of mesh array should have loop currents
+    kernel : Kernel
+        instance of Kernel class for computing magnetic flux
+    phi_offset : tuple
+        (oy, ox) position of g-field corner in mask for aligning
+        the mask and the sample data
+    gshape : tuple
+        (Ly, Lx) tuple of ints, shape of sample g-field
+    padding : tuple
+        (py, px) tuple of ints, padding of sample g for model
+
+    Kwargs
+    ------
+    resistors : array_like 
+        shape ((Lx+1)*(Ly+1)), resistances of mesh surrounding mask pixels
+    deltaV : float
+        the applied voltage (to the top and bottom unless otherwise specified)
+    electrodes : tuple
+        list of two integers [cathode, anode]. Default is
+        [0, Lx], i.e. the top two corners Specify in original mask units.
     """
 
     def __init__(
@@ -148,25 +172,6 @@ class ResistorNetworkModel(ModelComponent):
     ):
         """
         Initialize a resistor network.
-        mask : Boolean or int array of shape (Ly, Lx) for determining
-                which elements of mesh array should have loop currents
-        kernel : instance of Kernel class for computing magnetic flux
-
-        phi_offset : position of g-field corner in mask for aligning
-                    the mask and the sample data
-
-        gshape : (Ly, Lx) tuple of ints, shape of sample g-field
-
-        padding : (py, px) tuple of ints, padding of sample g for model
-
-        kwargs:
-        resistors : array_like of shape ((Lx+1)*(Ly+1)) 
-            resistances of mesh surrounding mask pixels
-        deltaV :    (float) is the applied voltage
-                    (to the top and bottom unless otherwise specified)
-        electrodes : list of two integers [cathode, anode]. Default is
-                     [0, Lx], i.e. the top two corners
-                     Specify in original mask units.
         """
         self.mask = fillones(mask)  # Since single holes do not remove resistors
         super(ResistorNetworkModel, self).__init__(mask.shape, **kwargs)
@@ -194,19 +199,14 @@ class ResistorNetworkModel(ModelComponent):
         for loop in self._topology[0]:
             row, col, data = self._addloop(row, col, data, self.G, loop, 0.0)
         row, col, data = self._addloop(row, col, data, self.G, self.vpath, self.deltaV)
-        self.R = coo_matrix((data, (row, col)), (self.N_loops, self.N_loops)).tocsc()
+        self.R = csr_matrix((data, (row, col)), (self.N_loops, self.N_loops))
 
-        # solve for loop currents
-        self.solve()
+        self.solve_currents()
         self.updateParams("J_ext", [1.0])
 
     def __setstate__(self, d):
         self.__dict__ = d
         self._setupGridsNumbers()
-
-    # ==============================
-    #   square grid of resistors
-    # ==============================
 
     def _setupGridsNumbers(self):
         #  Re-evaluate whether we need this complex interpolation stuff in here
@@ -261,7 +261,8 @@ class ResistorNetworkModel(ModelComponent):
             G.insert(ul, ur, i)  # w = resistor label
             G.insert(ul, ll, i + N_hor + i // Lx)
 
-            [self.edgeMeshes[edge].append(mesh) for edge in mesh_edges]
+            for edge in mesh_edges:
+                self.edgeMeshes[edge].append(mesh)
 
             ix, iy = i % Lx, i // Lx
             if (ix == Lx - 1) or not (i + 1 in meshes):  # right edge
@@ -377,11 +378,7 @@ class ResistorNetworkModel(ModelComponent):
 
         return self.gpatch + self.i[-1] * self.vloop
 
-    # ==============================
-    #   Calculate currents and fields
-    # ==============================
-
-    def solve(self):
+    def solve_currents(self):
         self.i = spsolve(self.R, self.v)
         self.gfieldflat[self.maskflat == 1] = self.i[: self.N_meshes].copy()
         self.gfield = self.gfieldflat.reshape(self.Ly, self.Lx)

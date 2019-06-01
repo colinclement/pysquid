@@ -16,7 +16,7 @@ from pysquid.param import ParameterMap
 from pysquid.component import ModelComponent
 import pysquid.linearModel as lm
 from pysquid.kernels.magpsf import GaussianKernel
-from pysquid.util.helpers import curl
+from pysquid.util.linear_operators import curl
 
 
 class FluxModel(ModelComponent):

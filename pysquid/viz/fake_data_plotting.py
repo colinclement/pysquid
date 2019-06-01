@@ -1,7 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-from pysquid.util.helpers import curl
+
+from pysquid.util.linear_operators import curl
 
 def simpleaxis(ax):
     ax.get_xaxis().set_ticks([])

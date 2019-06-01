@@ -1,7 +1,7 @@
 import numpy as np
 import os
 import matplotlib.pyplot as plt
-from pysquid.util.helpers import curl
+from pysquid.util.linear_operators import curl
 
 params = {'text.usetex': True, 
           'font.family': 'sans-serif', 'font.sans-serif': 'cmbright'}
