@@ -30,9 +30,8 @@ from itertools import product
 # TODO: Replace use of pykrylov with scipy or remove
 
 from pysquid.kernels.magpsf import *
-from pysquid.util.helpers import makeD2_operators, makeD_operators
 from pysquid.component import ModelComponent
-from pysquid.util.linearOperator import MyLinearOperator
+from pysquid.util.linear_operators import MyLinearOperator, makeD2
 
 
 class LinearModel(ModelComponent):
@@ -141,7 +140,7 @@ class LinearModelTV_ADMM(LinearModel):
         # self.sigma = model.sigma
         self.lamb = np.random.randn(self.N_pad * 2) / (2 * self.N_pad)
 
-        self.Dh, self.Dv = makeD2_operators((self.Ly_pad, self.Lx_pad), dx=self.rxy)
+        self.Dh, self.Dv = makeD2((self.Ly_pad, self.Lx_pad), dx=self.rxy)
         self.D = vstack([self.Dh, self.Dv])
 
     def _makeLinearOperators(self):

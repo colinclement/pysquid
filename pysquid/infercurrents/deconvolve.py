@@ -18,8 +18,7 @@ from functools import partial
 import numexpr as nu
 import numpy as np
 
-from pysquid.util.linearOperator import MyLinearOperator
-from pysquid.util.helpers import makeD2_operators
+from pysquid.util.linear_operators import MyLinearOperator, makeD2
 from pysquid.opt.admm import ADMM
 
 
@@ -107,7 +106,7 @@ class LinearDeconvolver:
         self.kernel = kernel
 
         if gamma is None:
-            D2h, D2v = makeD2_operators(self.kernel._padshape, dx=self.kernel.rxy)
+            D2h, D2v = makeD2(self.kernel._padshape, dx=self.kernel.rxy)
             self.G = D2h + D2v
         else:
             msg = "gamma must have `dot` and methods"
@@ -446,7 +445,7 @@ class TVDeconvolver(Deconvolver):
         assert np.isscalar(sigma), 'sigma must be a single scalar number'
         self.sigma = sigma
 
-        self.A = vstack(makeD2_operators(self.kernel._padshape, dx=self.kernel.rxy))
+        self.A = vstack(makeD2(self.kernel._padshape, dx=self.kernel.rxy))
         self._set_g_ext(g_ext)
 
         if self._F is not None: # NOTE: self._F defined in Deconvolver init
@@ -458,7 +457,7 @@ class TVDeconvolver(Deconvolver):
         if g_ext is None:
             self.c = np.zeros(self.p)
         else:  # No penalty for TV of edge made by exterior loop subtraction
-            A = vstack(makeD2_operators(self.kernel._padshape, dx=self.kernel.rxy))
+            A = vstack(makeD2(self.kernel._padshape, dx=self.kernel.rxy))
             self.c = - A.dot(g_ext.ravel())
 
     def g(self, z):

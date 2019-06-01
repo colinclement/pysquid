@@ -14,7 +14,7 @@ import numpy as np
 import scipy as sp
 import scipy.sparse.linalg as spl
 
-from pysquid.util.linearOperator import MyLinearOperator
+from pysquid.util.linear_operators import MyLinearOperator
 from pysquid.linearModel import LinearModel
 from pysquid.util.fftw import WrapFFTW
 

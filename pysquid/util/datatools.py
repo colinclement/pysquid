@@ -1,10 +1,10 @@
 import numpy as np
 import scipy.ndimage as ndi
-from pysquid.util.helpers import makeD2_operators, makeD_operators
+from pysquid.util.linear_operators import makeD2
 
 def smooth_streaks(image, dx, dy, curve_cutoff = 4., 
                    eps = 1E-10, itnlim = 2000, binit = 5): 
-    D2x, D2y = makeD2_operators(image.shape, dx, dy)
+    D2x, D2y = makeD2(image.shape, dx, dy)
     D2xim = np.abs(D2x.dot(image.ravel()).reshape(image.shape))
     D2yim = np.abs(D2y.dot(image.ravel()).reshape(image.shape))
     md2x, md2y = D2xim.mean(), D2yim.mean()
