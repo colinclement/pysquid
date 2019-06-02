@@ -1,7 +1,9 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import numexpr as nu
 from scipy.ndimage import mean
+import matplotlib.pyplot as plt
+
+from pysquid.util.linear_operators import makeD
 
 try:
     from numba import jit, float64, complex128, int64, void
@@ -21,6 +23,18 @@ try:
 except ImportError as er:
     haspng = False
 
+def total_variation(g, p=1/2, rxy=1.):
+    """
+    Total variation elements. NOTE: may want to JIT this
+    in the future 
+    """
+    Dh, Dv = makeD(g.shape, dx=rxy)
+    dh = Dh.dot(g.ravel())
+    dv = Dv.dot(g.ravel())
+    if p == 0.5:
+        return nu.evaluate("sqrt(dh*dh+dv*dv)").reshape(g.shape)
+    else:
+        return nu.evaluate("(dh*dh+dv*dv)**p").reshape(g.shape)
 
 def changeUnits(params, dx=1.0, dy=1.0):
     """
