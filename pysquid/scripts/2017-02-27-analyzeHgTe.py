@@ -9,7 +9,7 @@ import pysquid.kernels.magpsf as kernel
 import pysquid.viz.fit_data_plotting as fdp
 import pysquid.util.helpers as hpr
 
-import pysquid.infercurrents.deconvolve as deconvolve
+import pysquid.deconvolve as deconvolve
 
 loc = os.path.dirname(os.path.realpath(__file__))
 
