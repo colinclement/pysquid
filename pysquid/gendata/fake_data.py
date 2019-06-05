@@ -4,7 +4,6 @@ import scipy as sp
 from scipy.io import savemat, loadmat
 
 from pysquid.rnet import ResistorNetworkModel
-from pysquid.model import FluxModelTVPrior
 from pysquid.kernels.magpsf import GaussianKernel
 from pysquid.gendata.hall_probes_to_fake_data import make_mask
 from pysquid.util.linear_operators import curl
