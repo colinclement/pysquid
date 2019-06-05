@@ -17,7 +17,7 @@ import scipy as sp
 import os
 import scipy.ndimage as ndi
 import matplotlib.pyplot as plt
-from pysquid.util.helpers import loadpng, plotrgba
+from pysquid.util.helpers import loadpng
 from skimage.transform import rotate
 from scipy.interpolate import griddata
 from scipy.io import loadmat
