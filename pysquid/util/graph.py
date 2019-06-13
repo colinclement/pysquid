@@ -8,6 +8,8 @@ Implementation of adjacancy-list graph structure and basic graph traversal
 algorithms as described in Skiena chapter 5
 """
 
+from collections import deque
+
 
 class Edgenode(object):
     def __init__(self, y=None, w=1):
@@ -79,14 +81,15 @@ class Graph(object):
             self.process_late(v)
         return parent
 
-    def findpath(self, start, end, parents, path=None):
-        path = path if path is not None else [end]
-        if start == end:
-            return path
-        elif end is None:
-            return []  # no path exists!
-        else:
-            return self.findpath(start, parents[end], parents, [parents[end]] + path)
+    def findpath(self, start, end, parents):
+        path = deque([end])
+        while True:
+            if start == end:
+                return list(path)
+            elif end is None:
+                return []  # no path exists!
+            path.appendleft(parents[end])
+            end = parents[end]
 
     def shortestpath(self, start, end):
         parents = self.bfs(start)  # must have start as root

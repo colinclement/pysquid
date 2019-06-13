@@ -190,7 +190,7 @@ class ResistorNetworkModel(ModelComponent):
         row, col, data, self.G = self._make_meshandgraph()
 
         cathode, anode = self.electrodes
-        self.vpath = self.G.findpath(cathode, anode, self.G.bfs(cathode))
+        self.vpath = self.G.shortestpath(cathode, anode)
         if not self.vpath:
             raise RuntimeError("No path exists between cathode and anode")
 
