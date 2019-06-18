@@ -17,8 +17,7 @@ from functools import partial
 import numexpr as nu
 import numpy as np
 
-from pysquid.util.linear_operators import (MyLinearOperator, makeD2, 
-                                           finite_support)
+from pysquid.util.linear_operators import MyLinearOperator, makeD2, finite_support
 from pysquid.opt.admm import ADMM
 
 
@@ -33,11 +32,12 @@ class LinearDeconvolver:
     Specifically, for a given flux image \phi, kernel M, regularization
     operator \Gamma, and regularization strength \sigma^2, it solves
 
-        min_g 1/2||Mg - \phi||^2 + \sigma^2 ||\Gamma g||^2.
+        min_g 1/2||Mg - \phi||^2 + \sigma^2 ||\Gamma(g + g_ext)||^2.
 
     In other words, it solves the linear equation
 
-        (M^T M + 2 \sigma^2\Gamma^T \Gamma) g = M^T \phi.
+        (M^T M + 2 \sigma^2\Gamma^T \Gamma) g = M^T \phi -
+            \sigma^2\Gamma^T\Gamma c.
 
     If support_mask is provided, then there are effectively fewer parameters
     as the regions where current is set to zero (where support_mask is 1) are
@@ -50,6 +50,12 @@ class LinearDeconvolver:
     kernel: pysquid.Kernel object which can compute
         M.dot and M.T.dot matrix-vector products
         via the methods `kernel.applyM` and `kernel.applyMt`
+    sigma : float
+        estimate of noise in the data or otherwise chosen regularization
+        strength
+    g_ext : array_like, optional
+        portion of external current loop model inside field of view,
+        provided to not penalize total variation due to subtracted global loop
     gamma : MyLinearOperator object
         the regularization operator \Gamma, by default it is the laplacian
     support_mask : array_like
@@ -58,11 +64,13 @@ class LinearDeconvolver:
         thus zero internal current
     """
 
-    def __init__(self, kernel, gamma=None, support_mask=None):
+    def __init__(self, kernel, sigma, g_ext=None, gamma=None, support_mask=None):
         """
         Initialize LinearDeconvolver
         """
         self.kernel = kernel
+        assert np.isscalar(sigma), "sigma must be a single scalar number"
+        self.sigma = sigma
 
         if gamma is None:
             D2h, D2v = makeD2(self.kernel._padshape, dx=self.kernel.rxy)
@@ -73,6 +81,9 @@ class LinearDeconvolver:
             msg = "gamma must have `T` and methods"
             assert hasattr(gamma, "T"), msg
             self.G = gamma
+
+        if g_ext is not None:
+            self._gg_g_ext = sigma ** 2 * self.G.dot(g_ext)
 
         if support_mask is None:
             self._F = None
@@ -94,6 +105,10 @@ class LinearDeconvolver:
 
             self.G = self.G.dot(self._F)
 
+        # G.T after G -> GF in case shape changes
+        if g_ext is not None:
+            self._gg_g_ext = self.G.T.dot(self._gg_g_ext)
+
         n = self.kernel.N_pad if self._F is None else self._F.shape[1]
         self.M = MyLinearOperator((self.kernel.N, n), matvec=M, rmatvec=Mt)
 
@@ -108,7 +123,7 @@ class LinearDeconvolver:
             (n, n), matvec=partial(self._apply_regularized_kernel, sigma=sigma)
         )
 
-    def deconvolve(self, phi, sigma, **kwargs):
+    def deconvolve(self, phi, **kwargs):
         """
         Solve the regularized deconvolution problem with specific
         flux image \phi and regularization strength sigma
@@ -117,9 +132,6 @@ class LinearDeconvolver:
         ----------
         phi : ndarray
             image of size N total elements, matching initialized kernel
-        sigma : float
-            estimate of noise in the data or otherwise chosen regularization
-            strength
         (optional kwargs)
         solver : str
             specifying one of the linear solvers from the `scipy.sparse.linalg`
@@ -132,14 +144,13 @@ class LinearDeconvolver:
         gsol : ndarray of size N_pad
             solution to the regularized deconvolution problem
         """
-        assert np.isscalar(sigma), 'sigma must be a single scalar number'
         solver_str = kwargs.pop("solver", "cg")
         iprint = kwargs.pop("iprint", 0)
         assert solver_str in LINEAR_SOLVERS, SOLVER_MSG
         solver = getattr(ssl, solver_str)
 
-        A = self._regularized_operator(sigma)
-        b = self.M.T.dot(phi.ravel())
+        A = self._regularized_operator(self.sigma)
+        b = self.M.T.dot(phi.ravel()) - getattr(self, "_gg_g_ext", np.zeros_like(b))
 
         xsol, info = solver(A, b, **kwargs)
         if iprint:
@@ -401,13 +412,13 @@ class TVDeconvolver(Deconvolver):
     def __init__(self, kernel, sigma, g_ext=None, support_mask=None, **kwargs):
         """ Initialize TVDeconvolver """
         super(TVDeconvolver, self).__init__(kernel, support_mask, **kwargs)
-        assert np.isscalar(sigma), 'sigma must be a single scalar number'
+        assert np.isscalar(sigma), "sigma must be a single scalar number"
         self.sigma = sigma
 
         self.A = vstack(makeD2(self.kernel._padshape, dx=self.kernel.rxy))
         self._set_g_ext(g_ext)
 
-        if self._F is not None: # NOTE: self._F defined in Deconvolver init
+        if self._F is not None:  # NOTE: self._F defined in Deconvolver init
             self.A = self.A.dot(self._F)
 
         self.B = MyLinearOperator((self.m, self.m), matvec=lambda x: -x)
@@ -417,7 +428,7 @@ class TVDeconvolver(Deconvolver):
             self.c = np.zeros(self.p)
         else:  # No penalty for TV of edge made by exterior loop subtraction
             A = vstack(makeD2(self.kernel._padshape, dx=self.kernel.rxy))
-            self.c = - A.dot(g_ext.ravel())
+            self.c = -A.dot(g_ext.ravel())
 
     def g(self, z):
         """
