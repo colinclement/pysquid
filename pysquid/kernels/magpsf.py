@@ -29,15 +29,9 @@ class GaussianKernel(Kernel):
                       flux image
 
         kwargs:
-            dx and dy: floats for units of x and y. Choose either dx or dy
-            to be 1, and then the other should be the appropriate ratio.
-            NOTE: You should choose the smaller of x and y units to be 1,
-            so that the larger is a number greater than 1, which will promote
-            numerical stability in the linear solvers.
-            
+            rxy: ratio of x pixel width to y pixel width (assumed to be 1)
+
             _fftw_flags and _fftw_threads (see FFTW object)
-
-
         """
         if not len(params) == 3:
             raise RuntimeError("len(params) must be 3")
