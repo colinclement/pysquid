@@ -11,8 +11,8 @@ import numpy as np
 from pysquid.deconvolve import LinearDeconvolver, TVDeconvolver
 
 RNG = np.random.RandomState(4810740)
-DECON_DICT = dict('LinearDeconvolver'=LinearDeconvolver,
-                  'TVDeconvolver'=TVDeconvolver)
+DECON_DICT = {'LinearDeconvolver': LinearDeconvolver,
+              'TVDeconvolver': TVDeconvolver}
 
 
 class Tester:
@@ -45,8 +45,8 @@ class Tester:
 
     def make_data(self, g, kernel, sigma):
         """ Returns kernel.dot(g) + noise """
-        if self.phi_ext is not None:
-        return kernel.applyM(g.ravel()) + sigma * rng.randn(g.size)
+        flux = kernel.applyM(g.ravel()).ravel().real + sigma * RNG.randn(g.size)
+        return flux - self.phi_ext if self.phi_ext is not None else flux
 
     def test_protocols(self, protocols):
         """
@@ -54,25 +54,39 @@ class Tester:
         Parameters
         ----------
         protocols : list of dicts
-            List of dicts defining numerical experiments, each of which requires
-            keys 'label' (string labeling experiment), 'decon' (string name of
-            deconvolution method), and 'sigma' (the estimated noise magnitude or
-            regularization strength). Each dict can optionally contain keys
-            'support_mask' (the finite support mask, defaults None) and
-            'deconv_kwargs' (the keyword arguments handed to deconv.deconvolve).
+            List of dicts defining numerical experiments, e.g.
+
+            # the first three keys 'label', 'decon', and 'sigma' are required
+            [{'label': 'uniform annulus gaussian prior',
+              'decon': 'LinearDeconvolver',
+              'sigma': 0.07,
+              # the following are optional
+              'support_mask': None,
+              'deconv_kwargs': {}  # kwargs for deconv.deconvolve
+              }, ...
+            ]
 
         Returns
         -------
         results : dict
             results[label] = g_field_solution
         """
-        results = {}
+        output = {}
         kwargs = {'g_ext': self.g_ext}
         for pro in protocols:
+            results = {}
             print('Testing protocol {}'.format(pro['label']))
             kwargs['support_mask'] = pro.get('support_mask')
             decon = DECON_DICT[pro['decon']](self.kernel, pro['sigma'], **kwargs)
             gsol = decon.deconvolve(self.phi, **pro.get('deconv_kwargs', {}))
-            results[pro['label']] = (gsol + self.g_ext).reshape(self.kernel._padshape)
+
+            results['residual'] = (self.kernel.applyM(gsol).ravel().real -
+                                   self.phi).reshape(self.kernel._padshape)
+
+            if self.g_ext is not None:
+                gsol += self.g_ext.ravel()
+            results['gsol'] = gsol.reshape(self.kernel._padshape)
+
+            output[pro['label']] = results
         print('Finished all protocols')
-        return results
+        return output
