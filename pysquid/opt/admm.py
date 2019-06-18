@@ -275,7 +275,7 @@ class ADMM(object):
         t_inc = kwargs.get("t_inc", 2.0)
         t_dec = kwargs.get("t_dec", 2.0)
         mu = kwargs.get("mu", 10)
-        rho = kwargs.get("rho", 1e-2)
+        rho = kwargs.get("rho", 1e-4)
 
         x0 = x0 if x0 is not None else np.random.randn(self.n)
         z0 = self.start_z(x0, **kwargs)
