@@ -150,7 +150,8 @@ class LinearDeconvolver:
         solver = getattr(ssl, solver_str)
 
         A = self._regularized_operator(self.sigma)
-        b = self.M.T.dot(phi.ravel()) - getattr(self, "_gg_g_ext", np.zeros_like(b))
+        b = self.M.T.dot(phi.ravel()) 
+        b -= getattr(self, "_gg_g_ext", np.zeros_like(b))
 
         xsol, info = solver(A, b, **kwargs)
         if iprint:
