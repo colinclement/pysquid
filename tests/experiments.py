@@ -8,13 +8,13 @@ from pysquid.util.linear_operators import curl
 from annular_currents import annular_gfield
 from tester import Tester
 
-def diagnostic(results, tester):
+def diagnostic(results, tester, protocols):
     s = tester.sigma
     g = tester.g
     fig, axes = plt.subplots(2, len(results))
-    for ax, (k, v) in zip(axes[0], results.items()):
+    for ax, pro, (k, v) in zip(axes[0], protocols, results.items()):
         ax.matshow(results[k]['residual'])
-        ax.set_title(k)
+        ax.set_title(r"$\gamma\sigma$={}, ".format(pro['sigma']) + k)
         ax.axis('off')
     for ax, (k, v) in zip(axes[1], results.items()):
         res = results[k]['residual'].ravel()
@@ -31,6 +31,23 @@ def diagnostic(results, tester):
         axes2.plot(curl(results[k]['gsol'])[1][len(g)//2], label=k)
     plt.legend()
     return (fig, axes), (fig2, axes2)
+
+def j_density(g):
+    return np.hypot(*curl(g))
+
+def show_current_density(results, tester, cmap='gray_r'):
+    fig, axes = plt.subplots(1, len(results)+1)
+    fig.suptitle(
+        'Reconstructed Current Density, sigma = {}'.format(tester.sigma)
+    )
+    axes[0].matshow(j_density(tester.g), cmap=cmap)
+    axes[0].set_title('Ground truth')
+    axes[0].axis('off')
+    for ax, (k, v) in zip(axes[1:], results.items()):
+        ax.matshow(j_density(v['gsol']), cmap=cmap)
+        ax.set_title(k)
+        ax.axis('off')
+    return fig, axes
 
 L = 100
 inner_rad = 10
@@ -53,34 +70,36 @@ kernel = GaussianKernel((L, L), params)
 g_uniform /= kernel.applyM(g_uniform).ptp()
 g_parabolic /= kernel.applyM(g_parabolic).ptp()
 
-admm_kwargs = {'iprint': 1}
+admm_kwargs = {'iprint': 1, 'eps_rel': 1e-7, 'eps_abs': 1e-6, 'itnlim': 50}
+TV_factor = 2.
+L_factor = 2.7
 
 protocols = []
 protocols.append(
-    dict(label="annulus TV prior", decon="TVDeconvolver", sigma=1.6 * sigma,
+    dict(label="annulus TV prior", decon="TVDeconvolver", sigma=TV_factor * sigma,
          deconv_kwargs=admm_kwargs)
 )
 protocols.append(
     dict(label="annulus TV and finite support prior",
-         decon="TVDeconvolver", sigma=1.6 * sigma, support_mask=mask,
+         decon="TVDeconvolver", sigma=TV_factor * sigma, support_mask=mask,
          deconv_kwargs=admm_kwargs)
 )
 protocols.append(
     dict(label="annulus gaussian prior", decon="LinearDeconvolver",
-         sigma=2.5 * sigma)
+         sigma=L_factor * sigma)
 )
 protocols.append(
     dict(label="annulus gaussian and finite support prior",
          decon="LinearDeconvolver", 
-         sigma=2.5 * sigma, support_mask=mask)
+         sigma=L_factor * sigma, support_mask=mask)
 )
 
 
 uniform_tester = Tester(g_uniform, kernel, sigma)
-parabolic_tester = Tester(g_uniform, kernel, sigma)
+parabolic_tester = Tester(g_parabolic, kernel, sigma)
 
 print("Performing uniform annulus tests")
 uniform_results = uniform_tester.test_protocols(protocols)
-
-print("Performing parabolic annulus tests")
-parabolic_results = parabolic_tester.test_protocols(protocols)
+#
+#print("Performing parabolic annulus tests")
+#parabolic_results = parabolic_tester.test_protocols(protocols)
