@@ -1,12 +1,55 @@
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 from scipy.ndimage import binary_erosion
+from mpl_toolkits.axes_grid1 import ImageGrid
 
 from pysquid.kernels.magpsf import GaussianKernel
 from pysquid.util.linear_operators import curl
 
 from annular_currents import annular_gfield
 from tester import Tester
+
+mpl.rcParams['axes.titlesize'] = 16
+mpl.rcParams['font.family'] = 'serif'
+
+def j_density(g):
+    return np.hypot(*curl(g))
+
+def get_j_density_range(true_g, results):
+    j = j_density(true_g)
+    vmin, vmax = j.min(), j.max()
+    for v in results.values():
+        j = j_density(v['gsol'])
+        vmin = min(vmin, j.min())
+        vmax = max(vmax, j.max())
+    return dict(vmin=vmin, vmax=vmax)
+
+def compare_truth(uni_result, uni_tester, para_result, para_tester):
+    fig = plt.figure(1, (8., 8.))
+    grid = ImageGrid(fig, 111, nrows_ncols=(2, 2), axes_pad=0.4, 
+                     share_all=True, cbar_location="right", 
+                     cbar_mode="single",)
+    vlim = get_j_density_range(uni_tester.g, uni_result)
+    grid[0].matshow(j_density(uni_tester.g), cmap='gray_r', **vlim)
+    grid[0].set_title("True uniform current ring", pad=0)
+
+    for label, res in uni_result.items():
+        grid[1].matshow(j_density(res['gsol']), cmap='gray_r', **vlim)
+        grid[1].set_title(label, pad=0)
+
+    vlim = get_j_density_range(para_tester.g, para_result)
+    grid[2].matshow(j_density(para_tester.g), cmap='gray_r', **vlim)
+    grid[2].set_title("True parabolic current ring", pad=0)
+
+    for label, res in para_result.items():
+        im = grid[3].matshow(j_density(res['gsol']), cmap='gray_r', **vlim)
+        grid[3].set_title(label, pad=0)
+
+    for i in range(len(grid)):
+        grid[i].axis('off')
+    grid.cbar_axes[0].colorbar(im)
+    return fig, grid
 
 def diagnostic(results, tester, protocols):
     s = tester.sigma
@@ -32,25 +75,17 @@ def diagnostic(results, tester, protocols):
     plt.legend()
     return (fig, axes), (fig2, axes2)
 
-def j_density(g):
-    return np.hypot(*curl(g))
-
 def show_current_density(results, tester, cmap='gray_r'):
     fig, axes = plt.subplots(1, len(results)+1)
     fig.suptitle(
         'Reconstructed Current Density, sigma = {}'.format(tester.sigma)
     )
-    axes[0].matshow(j_density(tester.g), cmap=cmap)
+    vlim = get_range(j_density(tester.g), results)
+    axes[0].matshow(j_density(tester.g), cmap=cmap, **vlim)
     axes[0].set_title('Ground truth')
     axes[0].axis('off')
-    vmin, vmax = np.inf, -np.inf
-    for v in results.values():
-        j = j_density(v['gsol'])
-        vmin = min(vmin, j.min())
-        vmax = max(vmax, j.max())
-
     for ax, (k, v) in zip(axes[1:], results.items()):
-        ax.matshow(j_density(v['gsol']), cmap=cmap, vmin=vmin, vmax=vmax)
+        ax.matshow(j_density(v['gsol']), cmap=cmap, **vlim)
         ax.set_title(k)
         ax.axis('off')
     return fig, axes
@@ -76,8 +111,8 @@ kernel = GaussianKernel((L, L), params)
 g_uniform /= kernel.applyM(g_uniform).ptp()
 g_parabolic /= kernel.applyM(g_parabolic).ptp()
 
-admm_kwargs = {'iprint': 0, 'eps_rel': 1e-7, 'eps_abs': 1e-5, 'itnlim': 50,
-               'rho': 1e-2}
+admm_kwargs = {'iprint': 0, 'eps_rel': 1e-7, 'eps_abs': 1e-5, 'itnlim': 60,
+               'rho': 1e-1}
 TV_factor = 2.
 L_factor = 2.7
 
@@ -109,3 +144,17 @@ uniform_results = uniform_tester.test_protocols(protocols)
 
 print("Performing parabolic annulus tests")
 parabolic_results = parabolic_tester.test_protocols(protocols)
+
+#fig, grid = compare_truth(
+#    {'Gaussian prior reconstruction': uniform_results['annulus gaussian prior']}
+#    uniform_tester, 
+#    {'Gaussian prior reconstruction': parabolic_results['annulus gaussian prior']}, 
+#    parabolic_tester
+#)
+
+#fig, grid = compare_truth(
+#    {'TV prior reconstruction': uniform_results['annulus TV prior']}
+#    uniform_tester, 
+#    {'TV prior reconstruction': parabolic_results['annulus TV prior']}, 
+#    parabolic_tester
+#)
