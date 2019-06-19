@@ -43,8 +43,14 @@ def show_current_density(results, tester, cmap='gray_r'):
     axes[0].matshow(j_density(tester.g), cmap=cmap)
     axes[0].set_title('Ground truth')
     axes[0].axis('off')
+    vmin, vmax = np.inf, -np.inf
+    for v in results.values():
+        j = j_density(v['gsol'])
+        vmin = min(vmin, j.min())
+        vmax = max(vmax, j.max())
+
     for ax, (k, v) in zip(axes[1:], results.items()):
-        ax.matshow(j_density(v['gsol']), cmap=cmap)
+        ax.matshow(j_density(v['gsol']), cmap=cmap, vmin=vmin, vmax=vmax)
         ax.set_title(k)
         ax.axis('off')
     return fig, axes
@@ -63,14 +69,15 @@ mask[g_uniform == 0.] = 1.
 mask[g_uniform == g_uniform.max()] = 1.
 mask = 1 * binary_erosion(mask == 1., border_value=True)
 
-params = np.array([1.0, 1e-3, 1e-3])  # very small gaussian basically no PSF
+params = np.array([4.0, 1e-3, 1e-3])  # very small gaussian basically no PSF
 kernel = GaussianKernel((L, L), params)
 
 # rescale g-field so flux is of order 1
 g_uniform /= kernel.applyM(g_uniform).ptp()
 g_parabolic /= kernel.applyM(g_parabolic).ptp()
 
-admm_kwargs = {'iprint': 1, 'eps_rel': 1e-7, 'eps_abs': 1e-6, 'itnlim': 50}
+admm_kwargs = {'iprint': 0, 'eps_rel': 1e-7, 'eps_abs': 1e-5, 'itnlim': 50,
+               'rho': 1e-2}
 TV_factor = 2.
 L_factor = 2.7
 
@@ -94,12 +101,11 @@ protocols.append(
          sigma=L_factor * sigma, support_mask=mask)
 )
 
-
 uniform_tester = Tester(g_uniform, kernel, sigma)
 parabolic_tester = Tester(g_parabolic, kernel, sigma)
 
 print("Performing uniform annulus tests")
 uniform_results = uniform_tester.test_protocols(protocols)
-#
-#print("Performing parabolic annulus tests")
-#parabolic_results = parabolic_tester.test_protocols(protocols)
+
+print("Performing parabolic annulus tests")
+parabolic_results = parabolic_tester.test_protocols(protocols)
