@@ -98,7 +98,6 @@ sigma = 0.05
 g_uniform = annular_gfield(L, inner_rad, width)
 g_parabolic = annular_gfield(L, inner_rad, width, profile="parabolic")
 
-print("Making mask")
 mask = np.zeros_like(g_uniform)
 mask[g_uniform == 0.] = 1.
 mask[g_uniform == g_uniform.max()] = 1.
@@ -111,7 +110,7 @@ kernel = GaussianKernel((L, L), params)
 g_uniform /= kernel.applyM(g_uniform).ptp()
 g_parabolic /= kernel.applyM(g_parabolic).ptp()
 
-admm_kwargs = {'iprint': 0, 'eps_rel': 1e-7, 'eps_abs': 1e-5, 'itnlim': 60,
+admm_kwargs = {'iprint': 0, 'eps_rel': 1e-7, 'eps_abs': 1e-5, 'itnlim': 100,
                'rho': 1e-1}
 TV_factor = 2.
 L_factor = 2.7
@@ -136,14 +135,22 @@ protocols.append(
          sigma=L_factor * sigma, support_mask=mask)
 )
 
+reg_protocol = []
+factors = np.linspace(0.01, 5, 20)
+for fac in factors:
+    reg_protocol.append(
+        dict(label='factor = {}'.format(fac), decon='TVDeconvolver',
+             sigma=fac * sigma, deconv_kwargs=admm_kwargs)
+    )
+
 uniform_tester = Tester(g_uniform, kernel, sigma)
 parabolic_tester = Tester(g_parabolic, kernel, sigma)
 
-print("Performing uniform annulus tests")
-uniform_results = uniform_tester.test_protocols(protocols)
-
-print("Performing parabolic annulus tests")
-parabolic_results = parabolic_tester.test_protocols(protocols)
+#print("Performing uniform annulus tests")
+#uniform_results = uniform_tester.test_protocols(protocols)
+#
+#print("Performing parabolic annulus tests")
+#parabolic_results = parabolic_tester.test_protocols(protocols)
 
 #fig, grid = compare_truth(
 #    {'Gaussian prior reconstruction': uniform_results['annulus gaussian prior']}

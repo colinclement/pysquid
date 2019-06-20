@@ -1,9 +1,13 @@
 import numpy as np
 import scipy.ndimage as ndi
+from scipy.signal import convolve2d
 from pysquid.util.linear_operators import makeD2
 
-def smooth_streaks(image, dx, dy, curve_cutoff = 4., 
-                   eps = 1E-10, itnlim = 2000, binit = 5): 
+def smooth_streaks(image, dx, dy, curve_cutoff=4., 
+                   eps=1e-10, itnlim=2000, binit=5): 
+    """
+    Remove scan error streaks
+    """
     D2x, D2y = makeD2(image.shape, dx, dy)
     D2xim = np.abs(D2x.dot(image.ravel()).reshape(image.shape))
     D2yim = np.abs(D2y.dot(image.ravel()).reshape(image.shape))
@@ -35,4 +39,26 @@ def smooth_streaks(image, dx, dy, curve_cutoff = 4.,
             break
     return smoothed
                  
+def estimate_noise(img):
+    """ 
+    Estimate noise in img following J. Immerkaer, “Fast Noise Variance Estimation”, 
+    Computer Vision and Image Understanding, Vol. 64, No. 2, pp. 300-302, Sep. 1996
+    Parameters
+    ----------
+    img : array_like
+        image of shape larger than (3, 3)
 
+    Returns
+    -------
+    noise : float
+        estimate of noise in image
+    """
+    h, w = img.shape
+    assert h > 3 and w > 3, "img must be larger than 3x3 for useful estimate"
+    N = (w - 2) * (h - 2)
+
+    M = [[1, -2, 1],
+         [-2, 4, -2],
+         [1, -2, 1]]
+
+    return np.sum(np.abs(convolve2d(img, M))) * np.sqrt(np.pi / 2) / (6 * N)
