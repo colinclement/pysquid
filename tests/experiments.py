@@ -1,16 +1,21 @@
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import matplotlib.lines as lines
 from scipy.ndimage import binary_erosion
 from mpl_toolkits.axes_grid1 import ImageGrid
+from matplotlib.offsetbox import AnnotationBbox, OffsetImage
 
 from pysquid.kernels.magpsf import GaussianKernel
 from pysquid.util.linear_operators import curl
+from pysquid.util.datatools import estimate_noise 
 
 from annular_currents import annular_gfield
 from tester import Tester
 
 mpl.rcParams['axes.titlesize'] = 16
+mpl.rcParams['font.size'] = 12
+mpl.rcParams['legend.fontsize'] = 14
 mpl.rcParams['font.family'] = 'serif'
 
 def j_density(g):
@@ -24,6 +29,56 @@ def get_j_density_range(true_g, results):
         vmin = min(vmin, j.min())
         vmax = max(vmax, j.max())
     return dict(vmin=vmin, vmax=vmax)
+
+def addline(axe, xy, xytext):
+    axe.annotate('', xy=xy, xycoords='data', xytext=xytext, 
+                 textcoords='figure fraction',
+                 arrowprops=dict(arrowstyle='-'))
+
+def plot_regularization(results, tester, protocol):
+    sigma = tester.sigma
+    vkwargs = dict(vmin=-3*sigma, vmax=3*sigma)
+
+    res = [v['residual'] for k, v in results.items()]
+    err = np.array([v['residual'].std() for k, v in results.items()])
+    best = np.argmin(np.abs(err - sigma))
+
+    gamma = np.array([p['sigma']/sigma for p in protocol])
+    fig, axe = plt.subplots(figsize=(6.4, 4.))
+    axe.plot(gamma, err)
+    axe.axhline(sigma, c='k', label=r'True $\sigma$', lw=0.8)
+    axe.set_ylabel(r'$\mathrm{std}~||Mg - \phi||^2$')
+    axe.set_xlabel(r'Regularization strength $\gamma$')
+    axe.legend(loc='upper left')
+
+    im = OffsetImage(res[0], zoom=0.8)
+    ab = AnnotationBbox(im, xy=[gamma[0], err[0]],
+                        xybox=(.31, .33), boxcoords='figure fraction',
+                        xycoords='data',
+                        pad=0.,
+                        arrowprops=dict(arrowstyle="->", lw=1.))
+    axe.add_artist(ab)
+
+    im = OffsetImage(res[best], zoom=0.8)
+    ab = AnnotationBbox(im, xy=[gamma[best], err[best]],
+                        xybox=(.55, .42), boxcoords='figure fraction',
+                        xycoords='data',
+                        pad=0.,
+                        arrowprops=dict(arrowstyle="->", lw=1.))
+    axe.add_artist(ab)
+
+    im = OffsetImage(res[-1], zoom=0.8)
+    ab = AnnotationBbox(im, xy=[gamma[-1], err[-1]],
+                        xybox=(.8, .55), boxcoords='figure fraction',
+                        xycoords='data',
+                        pad=0.,
+                        arrowprops=dict(arrowstyle="->", lw=1.))
+    axe.add_artist(ab)
+
+    fig.subplots_adjust(bottom=0.15)
+
+    return fig, axe 
+
 
 def compare_truth(uni_result, uni_tester, para_result, para_tester):
     fig = plt.figure(1, (8., 8.))
@@ -135,16 +190,18 @@ protocols.append(
          sigma=L_factor * sigma, support_mask=mask)
 )
 
-reg_protocol = []
-factors = np.linspace(0.01, 5, 20)
-for fac in factors:
-    reg_protocol.append(
-        dict(label='factor = {}'.format(fac), decon='TVDeconvolver',
-             sigma=fac * sigma, deconv_kwargs=admm_kwargs)
-    )
 
 uniform_tester = Tester(g_uniform, kernel, sigma)
 parabolic_tester = Tester(g_parabolic, kernel, sigma)
+
+sigma = estimate_noise(uniform_tester.phi.reshape(kernel._shape))
+reg_protocol = []
+factors = np.linspace(0.01, 10, 50)
+for fac in factors:
+    reg_protocol.append(
+        dict(label='factor = {}'.format(fac), decon='LinearDeconvolver',
+             sigma=fac * sigma)
+    )
 
 #print("Performing uniform annulus tests")
 #uniform_results = uniform_tester.test_protocols(protocols)
@@ -165,3 +222,6 @@ parabolic_tester = Tester(g_parabolic, kernel, sigma)
 #    {'TV prior reconstruction': parabolic_results['annulus TV prior']}, 
 #    parabolic_tester
 #)
+
+#print("Performing regularization test")
+#reg_results = uniform_tester.test_protocols(reg_protocol)
