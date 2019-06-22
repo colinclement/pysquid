@@ -79,27 +79,27 @@ def plot_regularization(results, tester, protocol):
 
     return fig, axe 
 
-
 def compare_truth(uni_result, uni_tester, para_result, para_tester):
-    fig = plt.figure(1, (8., 8.))
-    grid = ImageGrid(fig, 111, nrows_ncols=(2, 2), axes_pad=0.4, 
+    fig = plt.figure(1, (17.1, 8.25))
+    L = len(uni_result)
+    grid = ImageGrid(fig, 111, nrows_ncols=(2, 1 + L), axes_pad=0.4, 
                      share_all=True, cbar_location="right", 
                      cbar_mode="single",)
     vlim = get_j_density_range(uni_tester.g, uni_result)
     grid[0].matshow(j_density(uni_tester.g), cmap='gray_r', **vlim)
-    grid[0].set_title("True uniform current ring", pad=0)
+    grid[0].set_title("(a) Uniform ground truth", pad=0)
 
-    for label, res in uni_result.items():
-        grid[1].matshow(j_density(res['gsol']), cmap='gray_r', **vlim)
-        grid[1].set_title(label, pad=0)
+    for i, (label, res) in enumerate(uni_result.items()):
+        grid[i+1].matshow(j_density(res['gsol']), cmap='gray_r', **vlim)
+        grid[i+1].set_title(label, pad=0)
 
     vlim = get_j_density_range(para_tester.g, para_result)
-    grid[2].matshow(j_density(para_tester.g), cmap='gray_r', **vlim)
-    grid[2].set_title("True parabolic current ring", pad=0)
+    grid[L+1].matshow(j_density(para_tester.g), cmap='gray_r', **vlim)
+    grid[L+1].set_title("(f) Parbolic ground truth", pad=0)
 
-    for label, res in para_result.items():
-        im = grid[3].matshow(j_density(res['gsol']), cmap='gray_r', **vlim)
-        grid[3].set_title(label, pad=0)
+    for i, (label, res) in enumerate(para_result.items()):
+        im = grid[L+2+i].matshow(j_density(res['gsol']), cmap='gray_r', **vlim)
+        grid[L+2+i].set_title(label, pad=0)
 
     for i in range(len(grid)):
         grid[i].axis('off')
@@ -172,20 +172,20 @@ L_factor = 2.7
 
 protocols = []
 protocols.append(
-    dict(label="annulus TV prior", decon="TVDeconvolver", sigma=TV_factor * sigma,
+    dict(label="TV prior", decon="TVDeconvolver", sigma=TV_factor * sigma,
          deconv_kwargs=admm_kwargs)
 )
 protocols.append(
-    dict(label="annulus TV and finite support prior",
+    dict(label="TV and finite support prior",
          decon="TVDeconvolver", sigma=TV_factor * sigma, support_mask=mask,
          deconv_kwargs=admm_kwargs)
 )
 protocols.append(
-    dict(label="annulus gaussian prior", decon="LinearDeconvolver",
+    dict(label="gaussian prior", decon="LinearDeconvolver",
          sigma=L_factor * sigma)
 )
 protocols.append(
-    dict(label="annulus gaussian and finite support prior",
+    dict(label="gaussian and finite support prior",
          decon="LinearDeconvolver", 
          sigma=L_factor * sigma, support_mask=mask)
 )
@@ -208,18 +208,23 @@ for fac in factors:
 #
 #print("Performing parabolic annulus tests")
 #parabolic_results = parabolic_tester.test_protocols(protocols)
-
+#
 #fig, grid = compare_truth(
-#    {'Gaussian prior reconstruction': uniform_results['annulus gaussian prior']}
+#    {
+#        '(b) Gaussian prior': uniform_results['gaussian prior'],
+#        '(c) TV prior': uniform_results['TV prior'],
+#        '(d) Gaussian and FS prior': 
+#          uniform_results['gaussian and finite support prior'],
+#        '(e) TV and FS prior': uniform_results['TV and finite support prior'],
+#    },
 #    uniform_tester, 
-#    {'Gaussian prior reconstruction': parabolic_results['annulus gaussian prior']}, 
-#    parabolic_tester
-#)
-
-#fig, grid = compare_truth(
-#    {'TV prior reconstruction': uniform_results['annulus TV prior']}
-#    uniform_tester, 
-#    {'TV prior reconstruction': parabolic_results['annulus TV prior']}, 
+#    {
+#        '(g) Gaussian prior': parabolic_results['gaussian prior'],
+#        '(h) TV prior': parabolic_results['TV prior'],
+#        '(i) Gaussian and FS prior': 
+#          parabolic_results['gaussian and finite support prior'],
+#        '(j) TV and FS prior': parabolic_results['TV and finite support prior'],
+#    },
 #    parabolic_tester
 #)
 
