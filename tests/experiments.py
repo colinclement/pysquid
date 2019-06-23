@@ -43,16 +43,16 @@ def plot_regularization(results, tester, protocol):
     err = np.array([v['residual'].std() for k, v in results.items()])
     best = np.argmin(np.abs(err - sigma))
 
-    gamma = np.array([p['sigma']/sigma for p in protocol])
+    lamb = np.array([p['sigma']/sigma for p in protocol])
     fig, axe = plt.subplots(figsize=(6.4, 4.))
-    axe.plot(gamma, err)
+    axe.plot(lamb, err)
     axe.axhline(sigma, c='k', label=r'True $\sigma$', lw=0.8)
-    axe.set_ylabel(r'$\mathrm{std}~||Mg - \phi||^2$')
-    axe.set_xlabel(r'Regularization strength $\gamma$')
+    axe.set_ylabel(r'$\mathrm{std}~||Mg_\lambda - \phi||^2$')
+    axe.set_xlabel(r'Regularization strength $\lambda$')
     axe.legend(loc='upper left')
 
     im = OffsetImage(res[0], zoom=0.8)
-    ab = AnnotationBbox(im, xy=[gamma[0], err[0]],
+    ab = AnnotationBbox(im, xy=[lamb[0], err[0]],
                         xybox=(.31, .33), boxcoords='figure fraction',
                         xycoords='data',
                         pad=0.,
@@ -60,16 +60,16 @@ def plot_regularization(results, tester, protocol):
     axe.add_artist(ab)
 
     im = OffsetImage(res[best], zoom=0.8)
-    ab = AnnotationBbox(im, xy=[gamma[best], err[best]],
-                        xybox=(.55, .42), boxcoords='figure fraction',
+    ab = AnnotationBbox(im, xy=[lamb[best], err[best]],
+                        xybox=(.56, .38), boxcoords='figure fraction',
                         xycoords='data',
                         pad=0.,
                         arrowprops=dict(arrowstyle="->", lw=1.))
     axe.add_artist(ab)
 
     im = OffsetImage(res[-1], zoom=0.8)
-    ab = AnnotationBbox(im, xy=[gamma[-1], err[-1]],
-                        xybox=(.8, .55), boxcoords='figure fraction',
+    ab = AnnotationBbox(im, xy=[lamb[-1], err[-1]],
+                        xybox=(.8, .5), boxcoords='figure fraction',
                         xycoords='data',
                         pad=0.,
                         arrowprops=dict(arrowstyle="->", lw=1.))
@@ -112,7 +112,7 @@ def diagnostic(results, tester, protocols):
     fig, axes = plt.subplots(2, len(results))
     for ax, pro, (k, v) in zip(axes[0], protocols, results.items()):
         ax.matshow(results[k]['residual'])
-        ax.set_title(r"$\gamma\sigma$={}, ".format(pro['sigma']) + k)
+        ax.set_title(r"$\lambda\sigma$={}, ".format(pro['sigma']) + k)
         ax.axis('off')
     for ax, (k, v) in zip(axes[1], results.items()):
         res = results[k]['residual'].ravel()
