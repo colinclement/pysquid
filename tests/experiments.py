@@ -14,9 +14,14 @@ from annular_currents import annular_gfield
 from tester import Tester
 
 mpl.rcParams['axes.titlesize'] = 16
-mpl.rcParams['font.size'] = 12
+mpl.rcParams['font.size'] = 14
 mpl.rcParams['legend.fontsize'] = 14
 mpl.rcParams['font.family'] = 'serif'
+
+def absfft(img):
+    imgk = np.fft.fftn(img)
+    imgk[0,0] = 0.
+    return np.fft.fftshift(np.abs(imgk))
 
 def j_density(g):
     return np.hypot(*curl(g))
@@ -35,7 +40,8 @@ def addline(axe, xy, xytext):
                  textcoords='figure fraction',
                  arrowprops=dict(arrowstyle='-'))
 
-def plot_regularization(results, tester, protocol):
+def plot_regularization(results, tester, protocol, opt_index=5, yshift_b=0.,
+                        yshift_t=0.):
     sigma = tester.sigma
     vkwargs = dict(vmin=-3*sigma, vmax=3*sigma)
 
@@ -49,33 +55,67 @@ def plot_regularization(results, tester, protocol):
     axe.axhline(sigma, c='k', label=r'True $\sigma$', lw=0.8)
     axe.set_ylabel(r'$\mathrm{std}~||Mg_\lambda - \phi||^2$')
     axe.set_xlabel(r'Regularization strength $\lambda$')
-    axe.legend(loc='upper left')
-
+    axe.legend(loc='lower right')
+   
+    axe.plot(lamb[0], err[0], '.', c='k')
     im = OffsetImage(res[0], zoom=0.8)
     ab = AnnotationBbox(im, xy=[lamb[0], err[0]],
-                        xybox=(.31, .33), boxcoords='figure fraction',
+                        xybox=(.31, .33-yshift_b), boxcoords='figure fraction',
                         xycoords='data',
                         pad=0.,
                         arrowprops=dict(arrowstyle="->", lw=1.))
     axe.add_artist(ab)
+    im = OffsetImage(absfft(res[0]), zoom=0.8, cmap='gray_r')
+    ab = AnnotationBbox(im, xy=[lamb[0], err[0]],
+                        xybox=(0.35, 0.4-yshift_b), boxcoords='figure fraction',
+                        arrowprops=dict(alpha=0), pad=0)
+    axe.add_artist(ab)
 
+    axe.plot(lamb[best], err[best], '.', c='k')
     im = OffsetImage(res[best], zoom=0.8)
     ab = AnnotationBbox(im, xy=[lamb[best], err[best]],
-                        xybox=(.56, .38), boxcoords='figure fraction',
+                        xybox=(.535, .38-yshift_b), boxcoords='figure fraction',
                         xycoords='data',
                         pad=0.,
                         arrowprops=dict(arrowstyle="->", lw=1.))
     axe.add_artist(ab)
+    im = OffsetImage(absfft(res[best]), zoom=0.8, cmap='gray_r')
+    ab = AnnotationBbox(im, xy=[lamb[0], err[0]],
+                        xybox=(0.575, 0.45-yshift_b), boxcoords='figure fraction',
+                        arrowprops=dict(alpha=0), pad=0)
+    axe.add_artist(ab)
 
+    axe.plot(lamb[-1], err[-1], '.', c='k')
     im = OffsetImage(res[-1], zoom=0.8)
     ab = AnnotationBbox(im, xy=[lamb[-1], err[-1]],
-                        xybox=(.8, .5), boxcoords='figure fraction',
+                        xybox=(.7675, .43-yshift_b), boxcoords='figure fraction',
                         xycoords='data',
                         pad=0.,
                         arrowprops=dict(arrowstyle="->", lw=1.))
     axe.add_artist(ab)
+    im = OffsetImage(absfft(res[-1]), zoom=0.8, cmap='gray_r')
+    ab = AnnotationBbox(im, xy=[lamb[0], err[0]],
+                        xybox=(0.8075, 0.5-yshift_b), boxcoords='figure fraction',
+                        arrowprops=dict(alpha=0), pad=0)
+    axe.add_artist(ab)
 
+    axe.plot(lamb[opt_index], err[opt_index], '.', c='k')
+    im = OffsetImage(res[opt_index], zoom=0.8)
+    ab = AnnotationBbox(im, xy=[lamb[opt_index], err[opt_index]],
+                        xybox=(.245, .75-yshift_t), boxcoords='figure fraction',
+                        xycoords='data',
+                        pad=0.,
+                        arrowprops=dict(alpha=0))
+    axe.add_artist(ab)
+    im = OffsetImage(absfft(res[opt_index]), zoom=0.8, cmap='gray_r')
+    ab = AnnotationBbox(im, xy=[lamb[opt_index], err[opt_index]],
+                        xybox=(0.295, 0.83-yshift_t), boxcoords='figure fraction',
+                        arrowprops=dict(arrowstyle='->', lw=1.), pad=0)
+    axe.add_artist(ab)
+
+    axe.set_yticks([0.04, 0.045, 0.05, 0.055])
     fig.subplots_adjust(bottom=0.15)
+    fig.subplots_adjust(left=0.15)
 
     return fig, axe 
 
@@ -95,7 +135,7 @@ def compare_truth(uni_result, uni_tester, para_result, para_tester):
 
     vlim = get_j_density_range(para_tester.g, para_result)
     grid[L+1].matshow(j_density(para_tester.g), cmap='gray_r', **vlim)
-    grid[L+1].set_title("(f) Parbolic ground truth", pad=0)
+    grid[L+1].set_title("(f) Parabolic ground truth", pad=0)
 
     for i, (label, res) in enumerate(para_result.items()):
         im = grid[L+2+i].matshow(j_density(res['gsol']), cmap='gray_r', **vlim)
@@ -190,17 +230,16 @@ protocols.append(
          sigma=L_factor * sigma, support_mask=mask)
 )
 
-
 uniform_tester = Tester(g_uniform, kernel, sigma)
 parabolic_tester = Tester(g_parabolic, kernel, sigma)
 
 sigma = estimate_noise(uniform_tester.phi.reshape(kernel._shape))
 reg_protocol = []
-factors = np.linspace(0.01, 10, 50)
+factors = np.linspace(0.0001, 10, 50)
 for fac in factors:
     reg_protocol.append(
         dict(label='factor = {}'.format(fac), decon='LinearDeconvolver',
-             sigma=fac * sigma)
+             sigma=fac * sigma, support_mask=mask)
     )
 
 #print("Performing uniform annulus tests")
@@ -228,5 +267,10 @@ for fac in factors:
 #    parabolic_tester
 #)
 
-#print("Performing regularization test")
-#reg_results = uniform_tester.test_protocols(reg_protocol)
+#print("Performing parabolic regularization test")
+#uniform_reg_results = parabolic_tester.test_protocols(reg_protocol)
+
+#print("Performing uniform regularization test")
+#parabolic_reg_results = uniform_tester.test_protocols(reg_protocol)
+#fig, axe = plot_regularization(parabolic_reg_results, parabolic_tester,
+#                               reg_protocol, 9, yshift_b=.03)
