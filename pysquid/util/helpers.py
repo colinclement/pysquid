@@ -25,16 +25,15 @@ except ImportError as er:
 
 def total_variation(g, p=1/2, rxy=1.):
     """
-    Total variation elements. NOTE: may want to JIT this
-    in the future 
+    Total variation image
     """
     Dh, Dv = makeD(g.shape, dx=rxy)
     dh = Dh.dot(g.ravel())
     dv = Dv.dot(g.ravel())
     if p == 0.5:
-        return nu.evaluate("sqrt(dh*dh+dv*dv)").reshape(g.shape)
+        return nu.evaluate("sqrt(dh*dh+dv*dv+2*dh*dv)").reshape(g.shape)
     else:
-        return nu.evaluate("(dh*dh+dv*dv)**p").reshape(g.shape)
+        return nu.evaluate("(dh*dh+dv*dv+2*dh*dv)**p").reshape(g.shape)
 
 def changeUnits(params, dx=1.0, dy=1.0):
     """
