@@ -441,7 +441,7 @@ class TVDeconvolver(Deconvolver):
             g(z): float, value of total variation of z
         """
         dx, dy = z[: len(z) // 2], z[len(z) // 2 :]
-        return self.sigma ** 2 * nu.evaluate("sum(sqrt(dx*dx + dy*dy))")
+        return self.sigma ** 2 * nu.evaluate("sum(sqrt((dx + dy) * (dx + dy) + 1e-12))")
 
     def _lagrangian_dz(self, z, x, y, rho):
         """
@@ -456,9 +456,10 @@ class TVDeconvolver(Deconvolver):
         """
         r = self.primal_residual(x, z)
         xx, yy = z[: len(z) // 2], z[len(z) // 2 :]
-        tv = nu.evaluate("sqrt(xx*xx + yy*yy)")
+        tv = nu.evaluate("sqrt((xx + yy) * (xx + yy) + 1e-12)")
         lagrangian = self.sigma ** 2 * tv.sum() + r.dot(y) + rho * r.dot(r) / 2
-        d_tv = np.concatenate((xx / (tv + 1e-8), yy / (tv + 1e-8)))
+        grad = (xx + yy) / (tv + 1e-12)
+        d_tv = np.concatenate((grad, grad))
         d_lagrangian = self.sigma ** 2 * d_tv + self.B.T.dot(y + rho * r)
         return lagrangian, d_lagrangian
 
