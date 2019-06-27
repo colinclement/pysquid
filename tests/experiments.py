@@ -53,61 +53,61 @@ def plot_regularization(results, tester, protocol, opt_index=5, yshift_b=0.,
     fig, axe = plt.subplots(figsize=(6.4, 4.))
     axe.plot(lamb, err)
     axe.axhline(sigma, c='k', label=r'True $\sigma$', lw=0.8)
-    axe.set_ylabel(r'$\mathrm{std}~||Mg_\lambda - \phi||^2$')
+    axe.set_ylabel(r'$\mathrm{std}(||Mg_\lambda - \phi||^2)$')
     axe.set_xlabel(r'Regularization strength $\lambda$')
     axe.legend(loc='lower right')
    
     axe.plot(lamb[0], err[0], '.', c='k')
-    im = OffsetImage(res[0], zoom=0.8)
+    im = OffsetImage(res[0], zoom=0.8, interpolation='nearest')
     ab = AnnotationBbox(im, xy=[lamb[0], err[0]],
                         xybox=(.31, .33-yshift_b), boxcoords='figure fraction',
                         xycoords='data',
                         pad=0.,
                         arrowprops=dict(arrowstyle="->", lw=1.))
     axe.add_artist(ab)
-    im = OffsetImage(absfft(res[0]), zoom=0.8, cmap='gray_r')
+    im = OffsetImage(absfft(res[0]), zoom=0.8, cmap='gray_r', interpolation='nearest')
     ab = AnnotationBbox(im, xy=[lamb[0], err[0]],
                         xybox=(0.35, 0.4-yshift_b), boxcoords='figure fraction',
                         arrowprops=dict(alpha=0), pad=0)
     axe.add_artist(ab)
 
     axe.plot(lamb[best], err[best], '.', c='k')
-    im = OffsetImage(res[best], zoom=0.8)
+    im = OffsetImage(res[best], zoom=0.8, interpolation='nearest')
     ab = AnnotationBbox(im, xy=[lamb[best], err[best]],
                         xybox=(.535, .38-yshift_b), boxcoords='figure fraction',
                         xycoords='data',
                         pad=0.,
                         arrowprops=dict(arrowstyle="->", lw=1.))
     axe.add_artist(ab)
-    im = OffsetImage(absfft(res[best]), zoom=0.8, cmap='gray_r')
+    im = OffsetImage(absfft(res[best]), zoom=0.8, cmap='gray_r', interpolation='nearest')
     ab = AnnotationBbox(im, xy=[lamb[0], err[0]],
                         xybox=(0.575, 0.45-yshift_b), boxcoords='figure fraction',
                         arrowprops=dict(alpha=0), pad=0)
     axe.add_artist(ab)
 
     axe.plot(lamb[-1], err[-1], '.', c='k')
-    im = OffsetImage(res[-1], zoom=0.8)
+    im = OffsetImage(res[-1], zoom=0.8, interpolation='nearest')
     ab = AnnotationBbox(im, xy=[lamb[-1], err[-1]],
                         xybox=(.7675, .43-yshift_b), boxcoords='figure fraction',
                         xycoords='data',
                         pad=0.,
                         arrowprops=dict(arrowstyle="->", lw=1.))
     axe.add_artist(ab)
-    im = OffsetImage(absfft(res[-1]), zoom=0.8, cmap='gray_r')
+    im = OffsetImage(absfft(res[-1]), zoom=0.8, cmap='gray_r', interpolation='nearest')
     ab = AnnotationBbox(im, xy=[lamb[0], err[0]],
                         xybox=(0.8075, 0.5-yshift_b), boxcoords='figure fraction',
                         arrowprops=dict(alpha=0), pad=0)
     axe.add_artist(ab)
 
     axe.plot(lamb[opt_index], err[opt_index], '.', c='k')
-    im = OffsetImage(res[opt_index], zoom=0.8)
+    im = OffsetImage(res[opt_index], zoom=0.8, interpolation='nearest')
     ab = AnnotationBbox(im, xy=[lamb[opt_index], err[opt_index]],
                         xybox=(.245, .75-yshift_t), boxcoords='figure fraction',
                         xycoords='data',
                         pad=0.,
                         arrowprops=dict(alpha=0))
     axe.add_artist(ab)
-    im = OffsetImage(absfft(res[opt_index]), zoom=0.8, cmap='gray_r')
+    im = OffsetImage(absfft(res[opt_index]), zoom=0.8, cmap='gray_r', interpolation='nearest')
     ab = AnnotationBbox(im, xy=[lamb[opt_index], err[opt_index]],
                         xybox=(0.295, 0.83-yshift_t), boxcoords='figure fraction',
                         arrowprops=dict(arrowstyle='->', lw=1.), pad=0)
@@ -149,12 +149,15 @@ def compare_truth(uni_result, uni_tester, para_result, para_tester):
 def diagnostic(results, tester, protocols):
     s = tester.sigma
     g = tester.g
-    fig, axes = plt.subplots(2, len(results))
+    fig, axes = plt.subplots(3, len(results))
     for ax, pro, (k, v) in zip(axes[0], protocols, results.items()):
         ax.matshow(results[k]['residual'])
         ax.set_title(r"$\lambda\sigma$={}, ".format(pro['sigma']) + k)
         ax.axis('off')
-    for ax, (k, v) in zip(axes[1], results.items()):
+    for ax, pro, (k, v) in zip(axes[1], protocols, results.items()):
+        ax.matshow(absfft(results[k]['residual']))
+        ax.axis('off')
+    for ax, (k, v) in zip(axes[2], results.items()):
         res = results[k]['residual'].ravel()
         r, b, _ = ax.hist(res, bins=50, density=True)
         x = 0.5 * (b[1:] + b[:-1])
@@ -205,10 +208,10 @@ kernel = GaussianKernel((L, L), params)
 g_uniform /= kernel.applyM(g_uniform).ptp()
 g_parabolic /= kernel.applyM(g_parabolic).ptp()
 
-admm_kwargs = {'iprint': 0, 'eps_rel': 1e-7, 'eps_abs': 1e-5, 'itnlim': 100,
+admm_kwargs = {'iprint': 1, 'eps_rel': 1e-8, 'eps_abs': 1e-6, 'itnlim': 200,
                'rho': 1e-1}
-TV_factor = 2.
-L_factor = 2.7
+TV_factor = 1.6
+L_factor = 2.2
 
 protocols = []
 protocols.append(
@@ -239,7 +242,8 @@ factors = np.linspace(0.0001, 10, 50)
 for fac in factors:
     reg_protocol.append(
         dict(label='factor = {}'.format(fac), decon='LinearDeconvolver',
-             sigma=fac * sigma, support_mask=mask)
+             sigma=fac * sigma, support_mask=mask, 
+             deconv_kwargs=dict(atol=1e-11, tol=1e-12))
     )
 
 #print("Performing uniform annulus tests")
@@ -268,9 +272,12 @@ for fac in factors:
 #)
 
 #print("Performing parabolic regularization test")
-#uniform_reg_results = parabolic_tester.test_protocols(reg_protocol)
+#parabolic_reg_results = parabolic_tester.test_protocols(reg_protocol)
+#fig, axe = plot_regularization(parabolic_reg_results, parabolic_tester,
+#                               reg_protocol, 9, yshift_b=.02)
 
 #print("Performing uniform regularization test")
-#parabolic_reg_results = uniform_tester.test_protocols(reg_protocol)
-#fig, axe = plot_regularization(parabolic_reg_results, parabolic_tester,
-#                               reg_protocol, 9, yshift_b=.03)
+#uniform_reg_results = uniform_tester.test_protocols(reg_protocol)
+#fig, axe = plot_regularization(uniform_reg_results, uniform_tester,
+#                               reg_protocol, 10, yshift_b=.03)
+plt.show()
