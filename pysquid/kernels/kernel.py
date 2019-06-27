@@ -20,6 +20,12 @@ import numpy as np
 from pysquid.component import ModelComponent
 from pysquid.util.fftw import FFT
 
+def mirror_symmetrize(arr):
+    ly, lx = arr.shape
+    ly, lx = ly // 2, lx //2
+    arr[:ly,lx:] = arr[:ly,:lx][:,::-1]
+    arr[ly:,:] = arr[:ly][::-1]
+
 
 class Kernel(ModelComponent):
     def __init__(self, shape, params=None, padding=None, edges=True, **kwargs):
@@ -38,7 +44,10 @@ class Kernel(ModelComponent):
                 to image edge currents.
 
         kwargs:
-            rxy: ratio of x pixel width to y pixel width (assumed to be 1)
+            rxy: float
+                ratio of x pixel width to y pixel width (assumed to be 1)
+            mirror: True/False
+                if True, uses mirror boundary conditions in Fourier transform
             
             fftw_plan and threads (see FFT object)
 
@@ -49,6 +58,7 @@ class Kernel(ModelComponent):
 
         self._fftw_plan = kwargs.get("fftw_plan", "FFTW_MEASURE")
         self._fftw_threads = kwargs.get("threads", 4)
+        self._mirror = kwargs.get("mirror", False)
 
         self._updategrids()
 
@@ -115,7 +125,7 @@ class Kernel(ModelComponent):
         self.psf[0, 0] = 1.0
         self.psf_k = self.fft.fft2(self.psf)
 
-    def edgeslice(self, pad=True):
+    def edgeslice(self, pad=False):
         """ top bottom left right """
         if pad:
             Ly, Lx = self.Ly_pad, self.Lx_pad
@@ -147,8 +157,12 @@ class Kernel(ModelComponent):
         Ly, Lx = self.Ly_pad, self.Lx_pad
         g = arr.reshape(Ly, Lx)
         self._doubleg[:Ly, :Lx] = g[:, :]
+        if self._mirror:
+            mirror_symmetrize(self._doubleg)
+
         g_k = self.fft.fft2(self._doubleg)
         out = self.crop(self.fft.ifft2(self.psf_k * self.mg_k * g_k))
+
         if not self.edges:
             for ek, lg in zip(self.edgefields_k, self.edgeproject(self._doubleg)):
                 lg_k = self.fft.fft2(lg)
@@ -166,11 +180,17 @@ class Kernel(ModelComponent):
         Ly, Lx, py, px = self.Ly, self.Lx, self.py, self.px
         flux = arr.reshape(Ly, Lx)
         self._doublefluxpad[py : py + Ly, px : px + Lx] = flux[:, :]
+        if self._mirror:
+            mirror_symmetrize(self._doublefluxpad)
+
         flux_k = self.fft.fft2(self._doublefluxpad)
         out = self.fft.ifft2(self.psf_k * self.mg_k * flux_k)
+
         if not self.edges:
-            for ek, sl in zip(self.edgefields_k, self.edgeslice()):
-                out[sl] -= self.fft.ifft2(self.psf_k * ek * flux_k)[sl]
+            for ek, lg in zip(self.edgefields_k,
+                              self.edgeproject(self._doublefluxpad)):
+                lg_k = self.fft.fft2(lg)
+                out -= self.crop(self.fft.ifft2(self.psf_k * ek * lg_k))
         return out[: self.Ly_pad, : self.Lx_pad]
 
     @property

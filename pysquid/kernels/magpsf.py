@@ -30,7 +30,7 @@ class GaussianKernel(Kernel):
 
         kwargs:
             rxy: ratio of x pixel width to y pixel width (assumed to be 1)
-
+            mirror: True/False, impose mirror boundary conditions
             _fftw_flags and _fftw_threads (see FFTW object)
         """
         if not len(params) == 3:
