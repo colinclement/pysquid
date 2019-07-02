@@ -17,7 +17,12 @@ from functools import partial
 import numexpr as nu
 import numpy as np
 
-from pysquid.util.linear_operators import MyLinearOperator, makeD2, finite_support
+from pysquid.util.linear_operators import (
+    MyLinearOperator,
+    makeD2,
+    makeDhv,
+    finite_support,
+)
 from pysquid.opt.admm import ADMM
 
 
@@ -74,7 +79,8 @@ class LinearDeconvolver:
 
         if gamma is None:
             D2h, D2v = makeD2(self.kernel._padshape, dx=self.kernel.rxy)
-            self.G = D2h + D2v
+            Dhv = makeDhv(self.kernel._padshape, dx=self.kernel.rxy)
+            self.G = vstack([D2h, D2v, np.sqrt(2) * Dhv])
         else:
             msg = "gamma must have `dot` and methods"
             assert hasattr(gamma, "dot"), msg
@@ -150,7 +156,7 @@ class LinearDeconvolver:
         solver = getattr(ssl, solver_str)
 
         A = self._regularized_operator(self.sigma)
-        b = self.M.T.dot(phi.ravel()) 
+        b = self.M.T.dot(phi.ravel())
         b -= getattr(self, "_gg_g_ext", np.zeros_like(b))
 
         xsol, info = solver(A, b, **kwargs)
@@ -225,7 +231,7 @@ class Deconvolver(ADMM):
 
         # set shape of matrices and arrays
         n = kernel.N_pad if support_mask is None else self._F.shape[1]
-        m = 2 * kernel.N_pad  # x and y derivatives
+        m = 3 * kernel.N_pad  # xx, yy, and xy derivatives
         p = m
 
         # Setup M matrix for Mg = phi
@@ -416,7 +422,9 @@ class TVDeconvolver(Deconvolver):
         assert np.isscalar(sigma), "sigma must be a single scalar number"
         self.sigma = sigma
 
-        self.A = vstack(makeD2(self.kernel._padshape, dx=self.kernel.rxy))
+        D2h, D2v = makeD2(self.kernel._padshape, dx=self.kernel.rxy)
+        Dhv = makeDhv(self.kernel._padshape, dx=self.kernel.rxy)
+        self.A = vstack([D2h, D2v, Dhv])
         self._set_g_ext(g_ext)
 
         if self._F is not None:  # NOTE: self._F defined in Deconvolver init
@@ -428,7 +436,10 @@ class TVDeconvolver(Deconvolver):
         if g_ext is None:
             self.c = np.zeros(self.p)
         else:  # No penalty for TV of edge made by exterior loop subtraction
-            A = vstack(makeD2(self.kernel._padshape, dx=self.kernel.rxy))
+            D2h, D2v = makeD2(self.kernel._padshape, dx=self.kernel.rxy)
+            Dhv = makeDhv(self.kernel._padshape, dx=self.kernel.rxy)
+            A = vstack([D2h, D2v, Dhv])
+
             self.c = -A.dot(g_ext.ravel())
 
     def g(self, z):
@@ -440,8 +451,10 @@ class TVDeconvolver(Deconvolver):
         returns:
             g(z): float, value of total variation of z
         """
-        dx, dy = z[: len(z) // 2], z[len(z) // 2 :]
-        return self.sigma ** 2 * nu.evaluate("sum(sqrt((dx + dy) * (dx + dy) + 1e-12))")
+        N = len(z) // 3
+        dx, dy, dxy = z[:N], z[N : 2 * N], z[2 * N :]
+        tvstr = "sum(sqrt(dx * dx + dy * dy + 2 * dxy * dxy + 1e-12))"
+        return self.sigma ** 2 * nu.evaluate(tvstr)
 
     def _lagrangian_dz(self, z, x, y, rho):
         """
@@ -455,11 +468,11 @@ class TVDeconvolver(Deconvolver):
             lagrangian (float), d_lagrangian (m-shaped ndarray)
         """
         r = self.primal_residual(x, z)
-        xx, yy = z[: len(z) // 2], z[len(z) // 2 :]
-        tv = nu.evaluate("sqrt((xx + yy) * (xx + yy) + 1e-12)")
+        N = len(z) // 3
+        xx, yy, xy = z[:N], z[N : 2 * N], z[2 * N :]
+        tv = nu.evaluate("sqrt(xx * xx + yy * yy + 2 * xy * xy + 1e-12)")
         lagrangian = self.sigma ** 2 * tv.sum() + r.dot(y) + rho * r.dot(r) / 2
-        grad = (xx + yy) / (tv + 1e-12)
-        d_tv = np.concatenate((grad, grad))
+        d_tv = np.concatenate((xx / tv, yy / tv, 2 * xy / tv))
         d_lagrangian = self.sigma ** 2 * d_tv + self.B.T.dot(y + rho * r)
         return lagrangian, d_lagrangian
 

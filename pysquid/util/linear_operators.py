@@ -63,7 +63,6 @@ def makeD(shape, dx=1.0, dy=1.0):
     dv = csr_matrix((vdata, (vrow, vcol)), shape=(N, N))
     return dh, dv
 
-
 def makeD2(shape, dx=1.0, dy=1.0):
     """
     Given an image shape, returns sparse matrices
@@ -86,6 +85,7 @@ def makeD2(shape, dx=1.0, dy=1.0):
         x, y = i % Lx, i // Lx
         hrow += [i, i, i]
         vrow += [i, i, i]
+
         if x > 0 and x < Lx - 1:
             hcol += [i - 1, i, i + 1]
         else:  # Don't want to compare to zeros outside
@@ -94,6 +94,7 @@ def makeD2(shape, dx=1.0, dy=1.0):
             elif x == Lx - 1:
                 hcol += [i, i - 1, i - 2]
         hdata += [1.0 / d2x, -2.0 / d2x, 1.0 / d2x]
+
         if y > 0 and y < Ly - 1:
             vcol += [i - Lx, i, i + Lx]
         else:
@@ -102,9 +103,24 @@ def makeD2(shape, dx=1.0, dy=1.0):
             elif y == Ly - 1:
                 vcol += [i, i - Lx, i - 2 * Lx]
         vdata += [1.0 / d2y, -2.0 / d2y, 1.0 / d2y]
+
     d2h = csr_matrix((hdata, (hrow, hcol)), shape=(N, N))
     d2v = csr_matrix((vdata, (vrow, vcol)), shape=(N, N))
     return d2h, d2v
+
+def makeDhv(shape, dx=1., dy=1.):
+    """
+    Given an image shape, returns a sparse matrix representing second-order 
+    finite-difference cross derivatives in the horizontal
+    and vertical directions
+    input:
+        shape : tuple of ints (Ly, Lx)
+    output:
+        dxy : scipy.sparse.csr.csr_matric
+            finite difference cross derivatives in horiz/vert direction
+    """
+    Dh, Dv = makeD(shape, dx, dy)
+    return Dh.dot(Dv)  # NOTE  this == Dv.dot(Dh) so it is symmetric!
 
 def finite_support(mask, out_shape=None):
     r"""
@@ -134,7 +150,6 @@ def finite_support(mask, out_shape=None):
     rows, cols, vals = [], [], []
     count = 0  # start independent values after fixed values
     # g_i = \sum_j F_{i,j} \tilde{g}_j
-    #TODO: MAKE SURE THESE INDICES ARE ALL CORRECT!
     for i, j in enumerate(labels.ravel()):
         rows.append(i)
         if j:
