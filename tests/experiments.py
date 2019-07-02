@@ -7,7 +7,7 @@ from mpl_toolkits.axes_grid1 import ImageGrid
 from matplotlib.offsetbox import AnnotationBbox, OffsetImage
 
 from pysquid.kernels.magpsf import GaussianKernel
-from pysquid.util.linear_operators import curl
+from pysquid.util.linear_operators import curl, makeD2
 from pysquid.util.datatools import estimate_noise 
 
 from annular_currents import annular_gfield
@@ -26,14 +26,19 @@ def absfft(img):
 def j_density(g):
     return np.hypot(*curl(g))
 
-def get_j_density_range(true_g, results):
-    j = j_density(true_g)
+def get_j_density_range(true_g, results, truth=None):
+    jtruth = truth if truth is not None else np.zeros_like(true_g)
+    j = j_density(true_g) - jtruth
     vmin, vmax = j.min(), j.max()
     for v in results.values():
-        j = j_density(v['gsol'])
+        j = j_density(v['gsol']) - jtruth
         vmin = min(vmin, j.min())
         vmax = max(vmax, j.max())
-    return dict(vmin=vmin, vmax=vmax)
+    if truth is not None:
+        lim = max(abs(vmin), abs(vmax))
+        return dict(vmin=-lim, vmax=lim)
+    else:
+        return dict(vmin=vmin, vmax=vmax)
 
 def addline(axe, xy, xytext):
     axe.annotate('', xy=xy, xycoords='data', xytext=xytext, 
@@ -120,30 +125,55 @@ def plot_regularization(results, tester, protocol, opt_index=5, yshift_b=0.,
     return fig, axe 
 
 def compare_truth(uni_result, uni_tester, para_result, para_tester):
-    fig = plt.figure(1, (17.1, 8.25))
+    fig = plt.figure(figsize=(10., 11.))
     L = len(uni_result)
-    grid = ImageGrid(fig, 111, nrows_ncols=(2, 1 + L), axes_pad=0.4, 
+    grid = ImageGrid(fig, 111, nrows_ncols=(4, 1 + L), axes_pad=0.1, 
                      share_all=True, cbar_location="right", 
-                     cbar_mode="single",)
+                     cbar_mode="each",)
     vlim = get_j_density_range(uni_tester.g, uni_result)
-    grid[0].matshow(j_density(uni_tester.g), cmap='gray_r', **vlim)
-    grid[0].set_title("(a) Uniform ground truth", pad=0)
+    uniform_truth = j_density(uni_tester.g)
+    grid[0].matshow(uniform_truth, cmap='gray_r', **vlim)
+    grid[0].set_title("(a) True uniform $|\mathbf{j}|$", pad=0)
+
+    for i in range(len(grid)):
+        if not i%(L+1) == L:
+            grid.cbar_axes[i].axis('off')
 
     for i, (label, res) in enumerate(uni_result.items()):
-        grid[i+1].matshow(j_density(res['gsol']), cmap='gray_r', **vlim)
+        im = grid[i+1].matshow(j_density(res['gsol']), cmap='gray_r', **vlim)
         grid[i+1].set_title(label, pad=0)
+    grid.cbar_axes[L].colorbar(im)
+
+    vlim = get_j_density_range(para_tester.g, para_result, uniform_truth)
+    for i, (label, res) in enumerate(uni_result.items()):
+        im = grid[L+i+2].matshow(j_density(res['gsol']) - uniform_truth, 
+                                 cmap='RdBu', **vlim)
+        if not i:
+            grid[L+i+2].set_title("Reconstruction \nerror", pad=0)
+    grid.cbar_axes[2 * L + 1].colorbar(im)
 
     vlim = get_j_density_range(para_tester.g, para_result)
-    grid[L+1].matshow(j_density(para_tester.g), cmap='gray_r', **vlim)
-    grid[L+1].set_title("(f) Parabolic ground truth", pad=0)
+    parabolic_truth = j_density(para_tester.g)
+    grid[2*L+2].matshow(parabolic_truth, cmap='gray_r', **vlim)
+    grid[2*L+2].set_title(r"(e) True parabolic $|\mathbf{j}|$", pad=0)
 
     for i, (label, res) in enumerate(para_result.items()):
-        im = grid[L+2+i].matshow(j_density(res['gsol']), cmap='gray_r', **vlim)
-        grid[L+2+i].set_title(label, pad=0)
+        im = grid[2*L+3+i].matshow(j_density(res['gsol']), cmap='gray_r', **vlim)
+        grid[2*L+3+i].set_title(label, pad=0)
+    grid.cbar_axes[3 * L + 2].colorbar(im)
+
+    vlim = get_j_density_range(para_tester.g, para_result, parabolic_truth)
+    for i, (label, res) in enumerate(para_result.items()):
+        im = grid[3*L+4+i].matshow(j_density(res['gsol'])-parabolic_truth, 
+                                   cmap='RdBu', **vlim)
+        if not i:
+            grid[3*L+4+i].set_title("Reconstruction \nerror", pad=0)
+    grid.cbar_axes[4 * L + 3].colorbar(im)
 
     for i in range(len(grid)):
         grid[i].axis('off')
-    grid.cbar_axes[0].colorbar(im)
+
+    grid.set_axes_pad((0.1, 0.55))
     return fig, grid
 
 def diagnostic(results, tester, protocols):
@@ -210,28 +240,33 @@ g_parabolic /= kernel.applyM(g_parabolic).ptp()
 
 admm_kwargs = {'iprint': 1, 'eps_rel': 1e-8, 'eps_abs': 1e-6, 'itnlim': 200,
                'rho': 1e-1}
-TV_factor = 1.6
-L_factor = 2.2
+TV_factor = 1.4
+L_factor = 2.
 
 protocols = []
 protocols.append(
     dict(label="TV prior", decon="TVDeconvolver", sigma=TV_factor * sigma,
          deconv_kwargs=admm_kwargs)
 )
-protocols.append(
-    dict(label="TV and finite support prior",
-         decon="TVDeconvolver", sigma=TV_factor * sigma, support_mask=mask,
-         deconv_kwargs=admm_kwargs)
-)
+#protocols.append(
+#    dict(label="TV and finite support prior",
+#         decon="TVDeconvolver", sigma=TV_factor * sigma, support_mask=mask,
+#         deconv_kwargs=admm_kwargs)
+#)
 protocols.append(
     dict(label="gaussian prior", decon="LinearDeconvolver",
          sigma=L_factor * sigma)
 )
+D2h, D2v = makeD2(kernel._padshape)
 protocols.append(
-    dict(label="gaussian and finite support prior",
-         decon="LinearDeconvolver", 
-         sigma=L_factor * sigma, support_mask=mask)
+    dict(label="gaussian laplace prior", decon="LinearDeconvolver",
+         sigma=L_factor * sigma, gamma=D2h + D2v)
 )
+#protocols.append(
+#    dict(label="gaussian and finite support prior",
+#         decon="LinearDeconvolver", 
+#         sigma=L_factor * sigma, support_mask=mask)
+#)
 
 uniform_tester = Tester(g_uniform, kernel, sigma)
 parabolic_tester = Tester(g_parabolic, kernel, sigma)
@@ -246,30 +281,32 @@ for fac in factors:
              deconv_kwargs=dict(atol=1e-11, tol=1e-12))
     )
 
-#print("Performing uniform annulus tests")
-#uniform_results = uniform_tester.test_protocols(protocols)
-#
-#print("Performing parabolic annulus tests")
-#parabolic_results = parabolic_tester.test_protocols(protocols)
-#
-#fig, grid = compare_truth(
-#    {
-#        '(b) Gaussian prior': uniform_results['gaussian prior'],
-#        '(c) TV prior': uniform_results['TV prior'],
-#        '(d) Gaussian and FS prior': 
-#          uniform_results['gaussian and finite support prior'],
-#        '(e) TV and FS prior': uniform_results['TV and finite support prior'],
-#    },
-#    uniform_tester, 
-#    {
-#        '(g) Gaussian prior': parabolic_results['gaussian prior'],
-#        '(h) TV prior': parabolic_results['TV prior'],
-#        '(i) Gaussian and FS prior': 
-#          parabolic_results['gaussian and finite support prior'],
-#        '(j) TV and FS prior': parabolic_results['TV and finite support prior'],
-#    },
-#    parabolic_tester
-#)
+print("Performing uniform annulus tests")
+uniform_results = uniform_tester.test_protocols(protocols)
+
+print("Performing parabolic annulus tests")
+parabolic_results = parabolic_tester.test_protocols(protocols)
+
+fig, grid = compare_truth(
+    {
+        '(b) Gaussian \nLaplacian': uniform_results['gaussian laplace prior'],
+        '(c) Gaussian \nabsolute curvature': uniform_results['gaussian prior'],
+        '(d) TV \nabsolute curvature': uniform_results['TV prior'],
+        #'(d) Gaussian and FS prior': 
+        #  uniform_results['gaussian and finite support prior'],
+        #'(e) TV and FS prior': uniform_results['TV and finite support prior'],
+    },
+    uniform_tester, 
+    {
+        '(f) Gaussian \nLaplacian': parabolic_results['gaussian laplace prior'],
+        '(g) Gaussian \nabsolute curvature': parabolic_results['gaussian prior'],
+        '(h) TV \nabsolute curvature': parabolic_results['TV prior'],
+        #'(i) Gaussian and FS prior': 
+        #  parabolic_results['gaussian and finite support prior'],
+        #'(j) TV and FS prior': parabolic_results['TV and finite support prior'],
+    },
+    parabolic_tester
+)
 
 #print("Performing parabolic regularization test")
 #parabolic_reg_results = parabolic_tester.test_protocols(reg_protocol)

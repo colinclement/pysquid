@@ -77,6 +77,7 @@ class Tester:
             results = {}
             print('Testing protocol {}'.format(pro['label']))
             kwargs['support_mask'] = pro.get('support_mask')
+            kwargs['gamma'] = pro.get('gamma')
             decon = DECON_DICT[pro['decon']](self.kernel, pro['sigma'], **kwargs)
             gsol = decon.deconvolve(self.phi, **pro.get('deconv_kwargs', {}))
 
