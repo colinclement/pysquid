@@ -26,7 +26,8 @@ from pysquid.util.linear_operators import (
 from pysquid.opt.admm import ADMM
 
 
-LINEAR_SOLVERS = ["bicg", "bicgstab", "cg", "cgs", "gmres", "lgmres", "minres", "qmr"]
+LINEAR_SOLVERS = ["bicg", "bicgstab", "cg", "cgs", "gmres", "lgmres", "minres",
+                  "qmr", "gcrotmk"]
 SOLVER_MSG = "Solver must be one of the following\n" + ", ".join(LINEAR_SOLVERS)
 
 
@@ -89,7 +90,7 @@ class LinearDeconvolver:
             self.G = gamma
 
         if g_ext is not None:
-            self._gg_g_ext = sigma ** 2 * self.G.dot(g_ext)
+            self._gg_g_ext = 2 * sigma ** 2 * self.G.dot(g_ext)
 
         if support_mask is None:
             self._F = None
