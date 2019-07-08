@@ -62,3 +62,29 @@ def estimate_noise(img):
          [1, -2, 1]]
 
     return np.sum(np.abs(convolve2d(img, M))) * np.sqrt(np.pi / 2) / (6 * N)
+
+def match_edge(data, model):
+    """
+    Matches affine transformation of model to data finds j such that
+    	min_{j,c} ||data - j model - c||^2
+    for vectors data and model.
+    
+    This is used for finding the rescaling factor for an external current model,
+    such that the subtracted loop most cancels the current flux through the
+    image boundary.
+    Parameters
+    ----------
+    data : array_like
+        part of flux data to be matched
+    model : array_like
+        part of model to match and cancel data
+    Returns
+    -------
+    j : float
+        rescaling factor to apply to model to best cancel data
+    """
+    N = len(data)
+    s = model.sum()
+    cos = data.dot(model)
+    mag = model.dot(model)
+    return (N * cos - s * data.sum()) / (N * mag - s ** 2)
