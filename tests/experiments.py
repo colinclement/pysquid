@@ -16,7 +16,7 @@ from annular_currents import annular_gfield
 from tester import Tester
 
 mpl.rcParams['axes.titlesize'] = 16
-mpl.rcParams['font.size'] = 14
+mpl.rcParams['font.size'] = 12
 mpl.rcParams['legend.fontsize'] = 14
 mpl.rcParams['font.family'] = 'serif'
 
@@ -63,8 +63,8 @@ def plot_regularization(results, tester, protocol, opt_index=5):
     axe = plt.subplot(gs[0,:])
     axe.plot(lamb, err)
     axe.axhline(sigma, c='k', label=r'True $\sigma$', lw=0.8, dashes=[4,3])
-    axe.set_ylabel(r'$\mathrm{std}(||Mg_\lambda - \phi||^2)$')
-    axe.set_xlabel(r'Regularization strength $\lambda$')
+    axe.set_ylabel(r'$\mathrm{std}(||Mg_\lambda - \phi||^2)$', fontsize=12)
+    axe.set_xlabel(r'Regularization strength $\lambda$', fontsize=12)
     axe.legend(loc='lower right')
 
     axe.plot(lamb[0], err[0], marker='v', c='k', markersize=10.)
@@ -116,7 +116,7 @@ def plot_regularization(results, tester, protocol, opt_index=5):
     fig.set_size_inches([5.3, 4.7])
 
     p = axe.get_position()
-    axe.set_position([p.x0+0.075, p.y0+.1, p.width-.1, p.height-.03])
+    axe.set_position([p.x0+0.065, p.y0+.08, p.width-.1, p.height-.03])
     
     return plt.gcf(), axe
 
@@ -236,7 +236,7 @@ mask[g_uniform == 0.] = 1.
 mask[g_uniform == g_uniform.max()] = 1.
 mask = 1 * binary_erosion(mask == 1., border_value=True)
 
-params = np.array([4.0, 1e-3, 1e-3])  # very small gaussian basically no PSF
+params = np.array([4.0, 1e-3, 1e-3])  # very small gaussian so no PSF
 kernel = GaussianKernel((L, L), params)
 
 # rescale g-field so flux is of order 1
@@ -328,8 +328,8 @@ if False:
 #fig, axe = plot_regularization(parabolic_reg_results, parabolic_tester,
 #                               reg_protocol, 9, yshift_b=.02)
 
-print("Performing uniform regularization test")
-uniform_reg_results = uniform_tester.test_protocols(reg_protocol)
-fig, axe = plot_regularization(uniform_reg_results, uniform_tester,
-                               reg_protocol, 14)
+#print("Performing uniform regularization test")
+#uniform_reg_results = uniform_tester.test_protocols(reg_protocol)
+#fig, axe = plot_regularization(uniform_reg_results, uniform_tester,
+#                               reg_protocol, 14)
 plt.show()
