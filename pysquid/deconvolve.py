@@ -309,21 +309,24 @@ class Deconvolver(ADMM):
         returns:
             y0  : ndarray of shape self.p, initial y
         """
-        Op = self._get_x_op(rho)
-        A, B, c = self.A, self.B, self.c
-        self._y0rhs = (
-            -Op.dot(x0)
-            + self.M.T.dot(phi)
-            + self.nu * self.xhat
-            - rho * A.T.dot(B.dot(z0) - c)
-        )
-        maxiter = kwargs.get("y0_maxiter", None)
-        atol = kwargs.get("atol", 1e-5)
-        btol = kwargs.get("atol", 1e-5)
-        self._y0minsol = ssl.lsqr(
-            self.A.T, self._y0rhs, iter_lim=maxiter, atol=atol, btol=btol, damp=1e-5
-        )
-        return self._y0minsol[0]
+        return np.zeros(self.p)
+        #NOTE: I set up the lagrange multiplier to keep it stable if it
+        # starts at the right answer, but Boyd and others simply set it to zero
+        #Op = self._get_x_op(rho)
+        #A, B, c = self.A, self.B, self.c
+        #self._y0rhs = (
+        #    -Op.dot(x0)
+        #    + self.M.T.dot(phi)
+        #    + self.nu * self.xhat
+        #    - rho * A.T.dot(B.dot(z0) - c)
+        #)
+        #maxiter = kwargs.get("y0_maxiter", None)
+        #atol = kwargs.get("atol", 1e-5)
+        #btol = kwargs.get("atol", 1e-5)
+        #self._y0minsol = ssl.lsqr(
+        #    self.A.T, self._y0rhs, iter_lim=maxiter, atol=atol, btol=btol, damp=1e-5
+        #)
+        #return self._y0minsol[0]
 
     def x_update(self, z, y, rho, x0=None, phi=None, **kwargs):
         """
