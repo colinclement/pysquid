@@ -21,10 +21,14 @@ class Tester:
 
     class for comparing multiple deconvolution methods and
     parameter combinations for a given experimental setup.
+        NOTE: When fitting flux with external fields, be sure to 
+        compute phi including the currents outside the field of view!
     Parameters
     ----------
     g : array_like
         ground truth g-field
+    phi : array_like
+        ground truth phi field
     kernel : pysquid.kernel.Kernel
         kernel object for computing magnetic flux
     sigma : float
@@ -34,18 +38,20 @@ class Tester:
     g_ext : array_like, optional
         g-field in field of view due to external current model. Default is None.
     """
-    def __init__(self, g, kernel, sigma, phi_ext=None, g_ext=None):
+    def __init__(self, g, phi, kernel, sigma, phi_ext=None, g_ext=None):
         self.g = g
+        self.phi = phi
         self.kernel = kernel
         self.sigma = sigma
         self.phi_ext = phi_ext
         self.g_ext = g_ext
 
-        self.phi = self.make_data(g, kernel, sigma)
+        self.data = self.make_data()
 
-    def make_data(self, g, kernel, sigma):
-        """ Returns kernel.dot(g) + noise """
-        flux = kernel.applyM(g.ravel()).ravel().real + sigma * RNG.randn(g.size)
+    def make_data(self):
+        """ Returns phi - phi_ext + noise """
+        #flux = kernel.applyM(g.ravel()).ravel().real + sigma * RNG.randn(g.size)
+        flux = self.phi.ravel() + self.sigma * RNG.randn(self.phi.size)
         return flux - self.phi_ext if self.phi_ext is not None else flux
 
     def test_protocols(self, protocols):
@@ -79,10 +85,10 @@ class Tester:
             kwargs['support_mask'] = pro.get('support_mask')
             kwargs['gamma'] = pro.get('gamma')
             decon = DECON_DICT[pro['decon']](self.kernel, pro['sigma'], **kwargs)
-            gsol = decon.deconvolve(self.phi, **pro.get('deconv_kwargs', {}))
+            gsol = decon.deconvolve(self.data, **pro.get('deconv_kwargs', {}))
 
             results['residual'] = (self.kernel.applyM(gsol).ravel().real -
-                                   self.phi).reshape(self.kernel._padshape)
+                                   self.data).reshape(self.kernel._padshape)
 
             if self.g_ext is not None:
                 gsol += self.g_ext.ravel()

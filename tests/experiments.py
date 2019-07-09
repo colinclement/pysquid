@@ -273,8 +273,12 @@ protocols.append(
          sigma=L_factor * sigma, support_mask=mask)
 )
 
-uniform_tester = Tester(g_uniform, kernel, sigma)
-parabolic_tester = Tester(g_parabolic, kernel, sigma)
+# Ground truth flux
+phi_uniform = kernel.applyM(g_uniform)
+phi_parabolic = kernel.applyM(g_parabolic)
+
+uniform_tester = Tester(g_uniform, phi_uniform, kernel, sigma)
+parabolic_tester = Tester(g_parabolic, phi_parabolic, kernel, sigma)
 
 sigma = estimate_noise(uniform_tester.phi.reshape(kernel._shape))
 reg_protocol = []
