@@ -10,9 +10,12 @@ from pysquid.util.datatools import estimate_noise, match_edge
 from tester import Tester
 from lithographic_mask import makedata, makedata2
 
+def j_density(g):
+    return np.hypot(*curl(g))
+
 DIR = os.path.dirname(os.path.realpath(__file__))
 
-GDAT = os.path.join(DIR, 'data', 'g-field-litho.npz')
+GDAT = os.path.join(DIR, 'data', 'g-field-litho-2.npz')
 if not os.path.exists(GDAT):
     makedata()
     makedata2()
@@ -50,8 +53,8 @@ tester = Tester(true_g[window], phi, kernel, sigma, g_ext=g_ext[window].ravel(),
 mirror_tester = Tester(true_g[window], phi, mirror_kernel, sigma)
 control_tester = Tester(true_g[window], phi, kernel, sigma)
 
-admm_kwargs = {'iprint': 1, 'eps_rel': 1e-8, 'eps_abs': 1e-8, 'itnlim': 200,
-               'rho': 1e-2}
+admm_kwargs = {'iprint': 1, 'eps_rel': 1e-8, 'eps_abs': 1e-8, 'itnlim': 300,
+               'rho': 1e-4}
 L_factor = 0.7
 TV_factor = 0.7
 
