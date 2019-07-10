@@ -6,7 +6,6 @@ import matplotlib.lines as lines
 import matplotlib.gridspec as gridspec
 from scipy.ndimage import binary_erosion
 from mpl_toolkits.axes_grid1 import ImageGrid
-from matplotlib.offsetbox import AnnotationBbox, OffsetImage
 
 from pysquid.kernels.magpsf import GaussianKernel
 from pysquid.util.linear_operators import curl, makeD2
