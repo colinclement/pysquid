@@ -141,8 +141,9 @@ class LinearDeconvolver:
             image of size N total elements, matching initialized kernel
         (optional kwargs)
         solver : str
-            specifying one of the linear solvers from the `scipy.sparse.linalg`
-            package
+            Specifying one of the linear solvers from the `scipy.sparse.linalg`
+            package. Default is 'bicgstab'. 'cg' is fastest but can be unstable.
+            'gcrotmk' is slowest but most stable.
         iprint : int
             if larger than 0 will print messages
 
@@ -151,7 +152,7 @@ class LinearDeconvolver:
         gsol : ndarray of size N_pad
             solution to the regularized deconvolution problem
         """
-        solver_str = kwargs.pop("solver", "cg")
+        solver_str = kwargs.pop("solver", "bicgstab")
         iprint = kwargs.pop("iprint", 0)
         assert solver_str in LINEAR_SOLVERS, SOLVER_MSG
         solver = getattr(ssl, solver_str)
@@ -346,9 +347,11 @@ class Deconvolver(ADMM):
             x   : ndarray of shape self.n, updated x value
 
         kwargs:
-            solver: string of iterative linear solver method. Choose from
-                list LINEAR_SOLVERS or solvers in scipy.sparse.linalg.
-                default is 'minres'
+            solver: str
+                Specifying one of the linear solvers from the `scipy.sparse.linalg`
+                package. Default is 'bicgstab'. 'cg' is fastest but can be unstable.
+                'gcrotmk' is slowest but most stable.
+
             maxiter: maximum iterations for linear solver, default 250
             tol: tolerance for convergence criterion of linear solver,
                 default is 1E-6. See docs for solver for definitions
@@ -359,7 +362,7 @@ class Deconvolver(ADMM):
         self._oldx = self._oldx if self._oldx is not None else np.zeros(self.n)
         maxiter = kwargs.get("maxiter", 250)
         tol = kwargs.get("tol", 1e-6)
-        solver_str = kwargs.get("solver", "cg")
+        solver_str = kwargs.get("solver", "bicgstab")
 
         assert phi is not None, "Must provide phi to deconvolve!"
         assert solver_str in LINEAR_SOLVERS, SOLVER_MSG
